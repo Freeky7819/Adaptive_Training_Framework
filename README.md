@@ -27,8 +27,6 @@
 
 ATF is a **modular training optimization framework** that applies resonance-based principles to neural network training. It monitors convergence patterns, adapts learning rates dynamically, and prevents catastrophic training failures.
 
-### Key Discovery: Frequency ω ≈ 6.0
-
 Through extensive experimentation across vision and NLP tasks, we discovered that an angular frequency of **ω ≈ 6.0** consistently produces optimal training dynamics across different domains.
 
 ```
