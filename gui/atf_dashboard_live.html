@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATF Dashboard - Full Suite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #0f172a; }
+        .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; background: #3b82f6; border-radius: 50%; cursor: pointer; }
+        .slider::-moz-range-thumb { width: 12px; height: 12px; background: #3b82f6; border-radius: 50%; cursor: pointer; border: none; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: #1e293b; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
+
+const Icons = {
+  Play: () => <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.8A1.5 1.5 0 004 4.1v11.8a1.5 1.5 0 002.3 1.3l9.1-5.9a1.5 1.5 0 000-2.6L6.3 2.8z"/></svg>,
+  Pause: () => <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M5 4a1 1 0 00-1 1v10a1 1 0 001 1h2a1 1 0 001-1V5a1 1 0 00-1-1H5zM13 4a1 1 0 00-1 1v10a1 1 0 001 1h2a1 1 0 001-1V5a1 1 0 00-1-1h-2z"/></svg>,
+  Stop: () => <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4h12v12H4z"/></svg>,
+  Download: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>,
+  Save: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>,
+  ChevronDown: () => <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>,
+  ChevronRight: () => <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>,
+  Wifi: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/></svg>,
+  WifiOff: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414"/></svg>,
+  Brain: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>,
+  Zap: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>,
+  Clock: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
+  Tune: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>,
+  Trophy: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>,
+  Sparkles: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>,
+  X: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>,
+  Copy: () => <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>,
+};
+
+const DEFAULT_CONFIG = {
+  dataset: 'mnist', epochs: 10, batchSize: 128, learningRate: 0.001, weightDecay: 0.0001, mode: 'full', useRealTraining: false, seed: 42,
+  // NLP specific
+  maxSeqLength: 128, blockSize: 256,
+  // Early stopping
+  useEarlyStopping: true, caMaxLrReductions: 2, metaNoImprovePatience: 4,
+  // Intra-epoch validation (for long epochs like BERT)
+  useIntraEpochVal: false, intraEpochSteps: 100, // Validate every N batches
+  // Modules
+  useConvergenceAnalysis: true, useGradientFeedback: true, usePeriodicLR: true, useConvergenceDamper: true,
+  useTemporalBuffer: true, useHarmonicInit: true, useMetaController: true, useCurvatureRegularizer: false,
+  // Convergence Analysis (CA)
+  caPatience: 5, caMinDelta: 0.005, caEmaAlpha: 0.3, caLrFactor: 0.5,
+  // Gradient Feedback Controller (GFC)
+  gfAlpha: 0.05, gfOmega: 6.0, gfPhi: 0.3, gfEmaAlpha: 0.3, gfClamp: 0.2,
+  // Periodic LR Scheduler (PLR)
+  lrOmega: 6.0, lrAmplitude: 0.08, lrDecay: 0.003, lrPhi: 1.0472, lrStepMode: 'epoch',
+  // Convergence Damper (CD)
+  cdThreshold: 0.008, cdAlphaDamp: 0.4, cdEpsilon: 0.0001,
+  // Temporal Feedback Buffer (TFB)
+  tbSize: 12, tbDecay: 0.05, tbPushStrength: 0.01,
+  // Harmonic Weight Initialization (HI)
+  harmonicOmega: 6.0, harmonicPhi: 1.0472, harmonicAmpWeight: 0.02, harmonicAmpBias: 0.01, warmupEpochs: 1, harmonicMode: 'sinlog',
+  // Meta Controller (MC)
+  mcPatience: 2, mcNoImprovePatience: 4, mcLrFactor: 0.5, mcMinLr: 0.00001, mcMaxLr: 0.01,
+  // Curvature Regularizer (CR)
+  curvatureLambda: 0.05, curvatureThreshold: 0.001, curvatureMomentum: 0.9, useFisherDiagonal: true,
+};
+
+// AutoTune Search Spaces
+const AUTOTUNE_SPACES = {
+  quick: {
+    name: 'Quick Tune',
+    description: '5 runs, key parameters only',
+    runs: 5,
+    params: {
+      lrOmega: [4.0, 5.0, 6.0, 7.0, 8.0],
+      lrAmplitude: [0.04, 0.08, 0.12],
+      gfAlpha: [0.03, 0.05, 0.08],
+    }
+  },
+  full: {
+    name: 'Full Tune',
+    description: '15 runs, comprehensive search',
+    runs: 15,
+    params: {
+      lrOmega: [4.0, 5.0, 6.0, 7.0, 8.0],
+      lrAmplitude: [0.02, 0.05, 0.08, 0.12],
+      lrDecay: [0.001, 0.003, 0.005],
+      gfAlpha: [0.02, 0.05, 0.08, 0.12],
+      gfOmega: [4.0, 6.0, 8.0],
+      cdThreshold: [0.005, 0.008, 0.015],
+      cdAlphaDamp: [0.2, 0.4, 0.6],
+      caPatience: [3, 5, 7],
+    }
+  },
+  smart: {
+    name: 'Smart Tune',
+    description: 'AI-guided search with Claude',
+    runs: 10,
+    useAI: true,
+  }
+};
+
+// Generate parameter combinations for grid search
+const generateSearchConfigs = (space, baseConfig, maxRuns) => {
+  const params = space.params;
+  const keys = Object.keys(params);
+  
+  if (keys.length === 0) return [baseConfig];
+  
+  // Random sampling from parameter space
+  const configs = [];
+  for (let i = 0; i < maxRuns; i++) {
+    const cfg = {...baseConfig};
+    keys.forEach(key => {
+      const values = params[key];
+      cfg[key] = values[Math.floor(Math.random() * values.length)];
+    });
+    // Add run metadata
+    cfg._runIndex = i + 1;
+    cfg._params = keys.reduce((acc, k) => ({...acc, [k]: cfg[k]}), {});
+    configs.push(cfg);
+  }
+  return configs;
+};
+
+// Complete dataset suite
+const DATASETS = {
+  vision: [
+    {value: 'mnist', label: 'MNIST', epochs: 10, classes: 10, type: 'vision'},
+    {value: 'fashion_mnist', label: 'Fashion-MNIST', epochs: 15, classes: 10, type: 'vision'},
+    {value: 'cifar10', label: 'CIFAR-10', epochs: 50, classes: 10, type: 'vision'},
+    {value: 'cifar100', label: 'CIFAR-100', epochs: 75, classes: 100, type: 'vision'},
+    {value: 'svhn', label: 'SVHN', epochs: 20, classes: 10, type: 'vision'},
+    {value: 'stl10', label: 'STL-10', epochs: 50, classes: 10, type: 'vision'},
+  ],
+  nlp_bert: [
+    {value: 'bert_sst2', label: 'BERT SST-2', epochs: 3, classes: 2, type: 'bert', task: 'sst2', metric: 'accuracy'},
+    {value: 'bert_mrpc', label: 'BERT MRPC', epochs: 3, classes: 2, type: 'bert', task: 'mrpc', metric: 'f1'},
+    {value: 'bert_qqp', label: 'BERT QQP', epochs: 3, classes: 2, type: 'bert', task: 'qqp', metric: 'f1'},
+    {value: 'bert_mnli', label: 'BERT MNLI', epochs: 3, classes: 3, type: 'bert', task: 'mnli', metric: 'accuracy'},
+    {value: 'bert_qnli', label: 'BERT QNLI', epochs: 3, classes: 2, type: 'bert', task: 'qnli', metric: 'accuracy'},
+    {value: 'bert_rte', label: 'BERT RTE', epochs: 5, classes: 2, type: 'bert', task: 'rte', metric: 'accuracy'},
+    {value: 'bert_cola', label: 'BERT CoLA', epochs: 3, classes: 2, type: 'bert', task: 'cola', metric: 'mcc'},
+  ],
+  nlp_gpt: [
+    {value: 'nanogpt_shakespeare', label: 'NanoGPT Shakespeare', epochs: 20, type: 'nanogpt', task: 'shakespeare', metric: 'perplexity'},
+    {value: 'nanogpt_wikitext2', label: 'NanoGPT WikiText-2', epochs: 10, type: 'nanogpt', task: 'wikitext-2', metric: 'perplexity'},
+    {value: 'nanogpt_wikitext103', label: 'NanoGPT WikiText-103', epochs: 5, type: 'nanogpt', task: 'wikitext-103', metric: 'perplexity'},
+  ],
+};
+
+const ALL_DATASETS = [...DATASETS.vision, ...DATASETS.nlp_bert, ...DATASETS.nlp_gpt];
+const formatTime = (s) => s < 60 ? `${s.toFixed(1)}s` : s < 3600 ? `${Math.floor(s/60)}m ${(s%60).toFixed(0)}s` : `${Math.floor(s/3600)}h ${Math.floor((s%3600)/60)}m`;
+
+// Components
+const Chart = ({ data, dataKey, color, title, height = 90 }) => {
+  if (!data?.length) return <div className="bg-gray-800/50 border border-gray-700 rounded p-2"><div className="text-[10px] text-gray-400 mb-1">{title}</div><div className="text-gray-600 text-[10px] text-center" style={{height}}>Waiting...</div></div>;
+  const values = data.map(d => d[dataKey]).filter(v => !isNaN(v));
+  if (!values.length) return null;
+  const max = Math.max(...values)*1.1||1, min = Math.min(...values)*0.9||0, range = max-min||1;
+  const points = data.map((d,i) => `${(i/(data.length-1||1))*100},${100-((d[dataKey]-min)/range)*100}`).join(' ');
+  return (
+    <div className="bg-gray-800/50 border border-gray-700 rounded p-2">
+      <div className="flex justify-between items-center mb-1"><span className="text-[10px] text-gray-400">{title}</span><span className="text-[10px] font-mono text-white">{values[values.length-1]?.toFixed(4)}</span></div>
+      <svg viewBox="0 0 100 100" style={{height}} className="w-full" preserveAspectRatio="none">
+        <defs><linearGradient id={`g-${dataKey}`} x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor={color} stopOpacity="0.3"/><stop offset="100%" stopColor={color} stopOpacity="0"/></linearGradient></defs>
+        <polygon points={`0,100 ${points} 100,100`} fill={`url(#g-${dataKey})`}/><polyline points={points} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke"/>
+      </svg>
+    </div>
+  );
+};
+
+const Toggle = ({ enabled, onChange, label, desc, disabled }) => (
+  <div className="flex items-center justify-between py-0.5">
+    <div><div className="text-xs text-gray-200">{label}</div>{desc && <div className="text-[10px] text-gray-500">{desc}</div>}</div>
+    <button onClick={() => !disabled && onChange(!enabled)} disabled={disabled} className={`relative w-9 h-5 rounded-full ${enabled ? 'bg-blue-600' : 'bg-gray-600'} ${disabled ? 'opacity-50' : ''}`}>
+      <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${enabled ? 'translate-x-4' : ''}`}/>
+    </button>
+  </div>
+);
+
+const Slider = ({ label, value, onChange, min, max, step, disabled }) => (
+  <div className="py-0.5">
+    <div className="flex justify-between items-center"><span className="text-[10px] text-gray-400">{label}</span>
+      <input type="number" value={value} onChange={e => onChange(parseFloat(e.target.value)||0)} disabled={disabled} className="w-14 px-1 py-0.5 text-[10px] bg-gray-700 border border-gray-600 rounded text-right text-white disabled:opacity-50" step={step} min={min} max={max}/>
+    </div>
+    <input type="range" value={value} onChange={e => onChange(parseFloat(e.target.value))} min={min} max={max} step={step} disabled={disabled} className="slider w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer disabled:opacity-50"/>
+  </div>
+);
+
+const Select = ({ label, value, onChange, options, disabled }) => (
+  <div className="py-0.5">
+    <label className="text-[10px] text-gray-400 block mb-0.5">{label}</label>
+    <select value={value} onChange={e => onChange(e.target.value)} disabled={disabled} className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs text-white disabled:opacity-50">
+      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+  </div>
+);
+
+const Section = ({ title, children, defaultOpen = true, color = 'blue' }) => {
+  const [open, setOpen] = useState(defaultOpen);
+  const colors = { blue: 'text-blue-400', green: 'text-green-400', purple: 'text-purple-400', yellow: 'text-yellow-400', orange: 'text-orange-400' };
+  return (
+    <div className="border border-gray-700 rounded mb-1.5 overflow-hidden">
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center gap-1.5 px-2 py-1 bg-gray-800 hover:bg-gray-750 text-left">
+        {open ? <Icons.ChevronDown/> : <Icons.ChevronRight/>}
+        <span className={`text-[11px] font-medium ${colors[color]}`}>{title}</span>
+      </button>
+      {open && <div className="px-2 py-1 bg-gray-800/50">{children}</div>}
+    </div>
+  );
+};
+
+const ModuleSection = ({ title, enabled, onToggle, children, color, disabled }) => {
+  const [open, setOpen] = useState(false);
+  const colors = { green: 'border-green-500/30', yellow: 'border-yellow-500/30', purple: 'border-purple-500/30', blue: 'border-blue-500/30', cyan: 'border-cyan-500/30', orange: 'border-orange-500/30', pink: 'border-pink-500/30', red: 'border-red-500/30' };
+  const textColors = { green: 'text-green-400', yellow: 'text-yellow-400', purple: 'text-purple-400', blue: 'text-blue-400', cyan: 'text-cyan-400', orange: 'text-orange-400', pink: 'text-pink-400', red: 'text-red-400' };
+  return (
+    <div className={`border rounded mb-1 overflow-hidden ${enabled ? colors[color] : 'border-gray-700'}`}>
+      <div className="flex items-center justify-between px-1.5 py-0.5">
+        <div className="flex items-center gap-1 flex-1">{children && <button onClick={() => setOpen(!open)} className="p-0.5">{open ? <Icons.ChevronDown/> : <Icons.ChevronRight/>}</button>}<span className={`text-[11px] font-medium ${enabled ? textColors[color] : 'text-gray-500'}`}>{title}</span></div>
+        <Toggle enabled={enabled} onChange={onToggle} disabled={disabled}/>
+      </div>
+      {open && enabled && children && <div className="px-1.5 py-1 border-t border-gray-700/50 bg-gray-900/30">{children}</div>}
+    </div>
+  );
+};
+
+const MetricBox = ({ label, value, unit, color = 'gray', small = false }) => (
+  <div className={`bg-gray-800/60 border-l-2 border-${color}-500 rounded px-2 py-1`}>
+    <div className="text-[9px] text-gray-500 uppercase">{label}</div>
+    <div className={`${small ? 'text-sm' : 'text-base'} font-bold text-white font-mono`}>{value}<span className="text-[10px] text-gray-500 ml-0.5">{unit}</span></div>
+  </div>
+);
+
+// ============================================================
+// CONFIG PARSER & EXPORTER
+// ============================================================
+const CONFIG_ALIASES = {
+  // CLI aliases -> config keys
+  'omega': 'lrOmega', 'w': 'lrOmega', 'lr-omega': 'lrOmega',
+  'amp': 'lrAmplitude', 'amplitude': 'lrAmplitude', 'a': 'lrAmplitude', 'lr-amp': 'lrAmplitude',
+  'decay': 'lrDecay', 'k': 'lrDecay', 'lr-decay': 'lrDecay',
+  'phi': 'lrPhi', 'lr-phi': 'lrPhi',
+  'gf-alpha': 'gfAlpha', 'gf': 'gfAlpha', 'gfa': 'gfAlpha',
+  'gf-omega': 'gfOmega', 'gfw': 'gfOmega',
+  'gf-phi': 'gfPhi',
+  'gf-clamp': 'gfClamp',
+  'patience': 'caPatience', 'p': 'caPatience',
+  'min-delta': 'caMinDelta', 'delta': 'caMinDelta',
+  'lr-factor': 'caLrFactor',
+  'max-reductions': 'caMaxLrReductions', 'max-lr-red': 'caMaxLrReductions', 'max-red': 'caMaxLrReductions',
+  'cd-threshold': 'cdThreshold', 'cd-t': 'cdThreshold', 'beta-threshold': 'cdThreshold', 'beta': 'cdThreshold',
+  'cd-alpha': 'cdAlphaDamp', 'cd-damp': 'cdAlphaDamp',
+  'tb-size': 'tbSize', 'buffer': 'tbSize',
+  'tb-decay': 'tbDecay',
+  'tb-push': 'tbPushStrength', 'push': 'tbPushStrength',
+  'h-omega': 'harmonicOmega', 'hi-omega': 'harmonicOmega',
+  'h-phi': 'harmonicPhi', 'hi-phi': 'harmonicPhi',
+  'h-amp': 'harmonicAmpWeight', 'hi-amp': 'harmonicAmpWeight',
+  'warmup': 'warmupEpochs',
+  'mc-patience': 'mcPatience',
+  'mc-lr': 'mcLrFactor',
+  'min-lr': 'mcMinLr', 'mc-min': 'mcMinLr',
+  'max-lr': 'mcMaxLr', 'mc-max': 'mcMaxLr',
+  'curv-lambda': 'curvatureLambda', 'curv': 'curvatureLambda', 'lambda': 'curvatureLambda',
+  'curv-threshold': 'curvatureThreshold',
+  'curv-mom': 'curvatureMomentum',
+  'epochs': 'epochs', 'e': 'epochs',
+  'batch': 'batchSize', 'bs': 'batchSize', 'batch-size': 'batchSize',
+  'lr': 'learningRate', 'learning-rate': 'learningRate',
+  'seed': 'seed', 's': 'seed',
+  'dataset': 'dataset', 'd': 'dataset',
+  // NLP specific
+  'seq-len': 'maxSeqLength', 'seq': 'maxSeqLength', 'max-seq': 'maxSeqLength',
+  'block-size': 'blockSize', 'block': 'blockSize', 'ctx': 'blockSize',
+  // Intra-epoch validation
+  'intra-val': 'useIntraEpochVal', 'intra': 'useIntraEpochVal', 'mid-epoch': 'useIntraEpochVal',
+  'val-steps': 'intraEpochSteps', 'intra-steps': 'intraEpochSteps',
+  // Module toggles
+  'ca': 'useConvergenceAnalysis', 'gfc': 'useGradientFeedback', 'plr': 'usePeriodicLR',
+  'cd': 'useConvergenceDamper', 'tb': 'useTemporalBuffer', 'hi': 'useHarmonicInit',
+  'mc': 'useMetaController', 'cr': 'useCurvatureRegularizer',
+  'early-stop': 'useEarlyStopping', 'es': 'useEarlyStopping',
+};
+
+// ============================================================
+// PRESETS - Quick commands for common scenarios
+// ============================================================
+const PRESETS = {
+  // Vision Datasets
+  'cifar10-baseline': { cmd: '--baseline --epochs 50 --batch 128 --lr 0.001', desc: 'CIFAR-10 baseline (no ATF)' },
+  'cifar10-atf': { cmd: '--atf --epochs 50 --batch 128 --lr 0.001 --omega 6.0 --amp 0.08 --decay 0.003 --patience 5', desc: 'CIFAR-10 with ATF optimization' },
+  'cifar100-baseline': { cmd: '--baseline --epochs 75 --batch 128 --lr 0.001', desc: 'CIFAR-100 baseline (no ATF)' },
+  'cifar100-atf': { cmd: '--atf --epochs 75 --batch 128 --lr 0.001 --omega 6.0 --amp 0.08 --decay 0.003 --patience 5', desc: 'CIFAR-100 with ATF optimization' },
+  'mnist-baseline': { cmd: '--baseline --epochs 20 --batch 128 --lr 0.001', desc: 'MNIST baseline' },
+  'mnist-atf': { cmd: '--atf --epochs 20 --batch 128 --lr 0.001 --omega 6.0 --amp 0.08 --patience 5', desc: 'MNIST with ATF' },
+  'fashion-baseline': { cmd: '--baseline --epochs 20 --batch 128 --lr 0.001', desc: 'Fashion-MNIST baseline' },
+  'fashion-atf': { cmd: '--atf --epochs 20 --batch 128 --lr 0.001 --omega 6.0 --amp 0.08 --patience 5', desc: 'Fashion-MNIST with ATF' },
+  // NLP - BERT
+  'bert-baseline': { cmd: '--baseline --epochs 3 --batch 32 --lr 0.00002', desc: 'BERT baseline (no ATF)' },
+  'bert-atf': { cmd: '--atf --epochs 3 --batch 32 --lr 0.00002 --patience 1 --max-red 1 --omega 6.0 --amp 0.02 --intra-val --val-steps 100', desc: 'BERT with gentle ATF + mid-epoch validation' },
+  'bert-safe': { cmd: '--atf --epochs 3 --batch 32 --lr 0.00002 --patience 1 --max-red 1 --amp 0.01 --gf off --hi off --intra-val --val-steps 100', desc: 'BERT ultra-safe (minimal ATF)' },
+  'bert-fast': { cmd: '--baseline --epochs 3 --batch 32 --lr 0.00002 --intra-val --val-steps 50', desc: 'BERT baseline with frequent mid-epoch checks' },
+  // NLP - NanoGPT  
+  'gpt-baseline': { cmd: '--baseline --epochs 20 --batch 64 --lr 0.0003 --block 256', desc: 'NanoGPT baseline' },
+  'gpt-atf': { cmd: '--atf --epochs 20 --batch 64 --lr 0.0003 --block 256 --omega 6.0 --amp 0.04 --patience 2', desc: 'NanoGPT with ATF' },
+  // Experimental
+  'aggressive': { cmd: '--atf --omega 7.0 --amp 0.12 --decay 0.005 --patience 3 --gf 0.1', desc: 'Aggressive oscillation (experimental)' },
+  'conservative': { cmd: '--atf --omega 5.5 --amp 0.04 --decay 0.001 --patience 8', desc: 'Conservative, stable training' },
+  'fast-converge': { cmd: '--atf --omega 6.0 --amp 0.1 --patience 3 --max-red 1', desc: 'Fast convergence, early stop' },
+};
+
+const parseQuickConfig = (text) => {
+  const result = {};
+  const trimmed = text.trim();
+  
+  // Try JSON first
+  if (trimmed.startsWith('{')) {
+    try {
+      const json = JSON.parse(trimmed);
+      return json;
+    } catch (e) {}
+  }
+  
+  // CLI format: --omega 6.0 --amp 0.08 or -w 6.0 -a 0.08
+  const parts = trimmed.split(/\s+/);
+  let i = 0;
+  while (i < parts.length) {
+    let part = parts[i];
+    if (part.startsWith('--') || part.startsWith('-')) {
+      const key = part.replace(/^-+/, '').toLowerCase();
+      
+      // Special: --baseline flag turns off all modules
+      if (key === 'baseline' || key === 'base') {
+        result.useConvergenceAnalysis = false;
+        result.useGradientFeedback = false;
+        result.usePeriodicLR = false;
+        result.useConvergenceDamper = false;
+        result.useTemporalBuffer = false;
+        result.useHarmonicInit = false;
+        result.useMetaController = false;
+        result.useCurvatureRegularizer = false;
+        result.mode = 'baseline';
+        i++;
+        continue;
+      }
+      
+      // Special: --atf or --full flag turns on all modules
+      if (key === 'atf' || key === 'full') {
+        result.useConvergenceAnalysis = true;
+        result.useGradientFeedback = true;
+        result.usePeriodicLR = true;
+        result.useConvergenceDamper = true;
+        result.useTemporalBuffer = true;
+        result.useHarmonicInit = true;
+        result.useMetaController = true;
+        result.mode = 'full';
+        i++;
+        continue;
+      }
+      
+      const configKey = CONFIG_ALIASES[key] || key;
+      i++;
+      if (i < parts.length && !parts[i].startsWith('-')) {
+        let value = parts[i];
+        // Parse value
+        if (value === 'true' || value === 'on' || value === '1') value = true;
+        else if (value === 'false' || value === 'off' || value === '0') value = false;
+        else if (!isNaN(parseFloat(value))) value = parseFloat(value);
+        result[configKey] = value;
+        i++;
+      } else {
+        // Flag without value = true
+        result[configKey] = true;
+      }
+    } else {
+      i++;
+    }
+  }
+  return result;
+};
+
+const exportConfigToCLI = (config) => {
+  const important = [
+    ['lrOmega', 'omega'], ['lrAmplitude', 'amp'], ['lrDecay', 'decay'], ['lrPhi', 'phi'],
+    ['gfAlpha', 'gf-alpha'], ['gfOmega', 'gf-omega'],
+    ['caPatience', 'patience'], ['caMinDelta', 'min-delta'], ['caMaxLrReductions', 'max-reductions'],
+    ['cdThreshold', 'cd-threshold'], ['cdAlphaDamp', 'cd-alpha'],
+    ['tbSize', 'tb-size'],
+    ['harmonicOmega', 'h-omega'], ['harmonicPhi', 'h-phi'], ['harmonicAmpWeight', 'h-amp'],
+    ['mcPatience', 'mc-patience'],
+    ['curvatureLambda', 'curv-lambda'],
+    ['epochs', 'epochs'], ['batchSize', 'batch'], ['learningRate', 'lr'], ['seed', 'seed'],
+  ];
+  
+  return important
+    .filter(([key]) => config[key] !== undefined && config[key] !== DEFAULT_CONFIG[key])
+    .map(([key, alias]) => `--${alias} ${config[key]}`)
+    .join(' ');
+};
+
+const exportConfigToJSON = (config) => {
+  const keys = ['lrOmega', 'lrAmplitude', 'lrDecay', 'lrPhi', 'gfAlpha', 'gfOmega', 'gfPhi', 'gfClamp',
+    'caPatience', 'caMinDelta', 'caMaxLrReductions', 'caLrFactor', 'cdThreshold', 'cdAlphaDamp',
+    'tbSize', 'tbDecay', 'harmonicOmega', 'harmonicPhi', 'harmonicAmpWeight', 'mcPatience', 'mcLrFactor',
+    'curvatureLambda', 'epochs', 'batchSize', 'learningRate', 'seed', 'dataset'];
+  const obj = {};
+  keys.forEach(k => { if (config[k] !== undefined) obj[k] = config[k]; });
+  return JSON.stringify(obj, null, 2);
+};
+
+function ATFDashboard() {
+  const [config, setConfig] = useState(DEFAULT_CONFIG);
+  const [connected, setConnected] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [state, setState] = useState({status: 'idle', epoch: 0, total_epochs: 10, batch: 0, total_batches: 0, train_loss: 0, val_loss: 0, accuracy: 0, best_accuracy: 0, best_epoch: 0, learning_rate: 0.001, beta: 0.0, omega: 6.0, r2: 0, confidence: 1.0, stillness: false, curvature: 0, lr_reduced: false, checkpoint: false, early_stopped: false, perplexity: 0});
+  const [metrics, setMetrics] = useState({loss: [], acc: [], lr: [], beta: [], valLoss: [], curvature: [], perplexity: []});
+  const [epochHistory, setEpochHistory] = useState([]);
+  const [logs, setLogs] = useState([{time: new Date().toLocaleTimeString(), message: 'Ready - Connect to server', level: 'info'}]);
+  const [serverUrl, setServerUrl] = useState('ws://localhost:8000/ws');
+  const [startTime, setStartTime] = useState(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [epochTimes, setEpochTimes] = useState([]);
+  const [lastEpochTime, setLastEpochTime] = useState(null);
+  
+  // Quick Config state
+  const [quickConfigText, setQuickConfigText] = useState('');
+  const [quickConfigError, setQuickConfigError] = useState('');
+  
+  // AutoTune state
+  const [autotuneMode, setAutotuneMode] = useState(null); // null, 'quick', 'full', 'smart'
+  const [autotuneActive, setAutotuneActive] = useState(false);
+  const [autotuneRuns, setAutotuneRuns] = useState([]);
+  const [autotuneCurrentRun, setAutotuneCurrentRun] = useState(0);
+  const [autotuneTotalRuns, setAutotuneTotalRuns] = useState(0);
+  const [autotuneConfigs, setAutotuneConfigs] = useState([]);
+  const [autotuneShowPanel, setAutotuneShowPanel] = useState(false);
+  const [autotuneAnalysis, setAutotuneAnalysis] = useState(null);
+  const [autotuneAnalyzing, setAutotuneAnalyzing] = useState(false);
+  
+  const wsRef = useRef(null);
+  const timerRef = useRef(null);
+
+  const addLog = (msg, level = 'info') => setLogs(p => [...p.slice(-100), {time: new Date().toLocaleTimeString(), message: msg, level}]);
+  const updateConfig = (key, value) => setConfig(p => ({...p, [key]: value}));
+  
+  const currentDataset = ALL_DATASETS.find(d => d.value === config.dataset) || ALL_DATASETS[0];
+  const isNLP = currentDataset.type === 'bert' || currentDataset.type === 'nanogpt';
+  const isPerplexityMetric = currentDataset.metric === 'perplexity';
+
+  useEffect(() => {
+    if (state.status === 'running' && startTime) {
+      timerRef.current = setInterval(() => setElapsedTime((Date.now() - startTime) / 1000), 100);
+      return () => clearInterval(timerRef.current);
+    } else if (state.status !== 'running') clearInterval(timerRef.current);
+  }, [state.status, startTime]);
+
+  const connect = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    setConnecting(true); addLog(`Connecting...`);
+    const ws = new WebSocket(serverUrl);
+    ws.onopen = () => { setConnected(true); setConnecting(false); addLog('Connected', 'success'); ws.send(JSON.stringify({command: 'configure', config})); };
+    ws.onclose = () => { setConnected(false); setConnecting(false); addLog('Disconnected', 'warning'); };
+    ws.onerror = () => { setConnecting(false); addLog('Connection failed', 'error'); };
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'state') {
+        const s = data.data;
+        const prevEpoch = state.epoch;
+        setState(s);
+        if (s.epoch > prevEpoch && s.epoch > 0) {
+          const now = Date.now();
+          if (lastEpochTime) {
+            const epochDuration = (now - lastEpochTime) / 1000;
+            setEpochTimes(p => [...p, epochDuration]);
+            setEpochHistory(p => [...p, {epoch: s.epoch, train_loss: s.train_loss, val_loss: s.val_loss, accuracy: s.accuracy, perplexity: s.perplexity, learning_rate: s.learning_rate, beta: s.beta, omega: s.omega || 6.0, r2: s.r2 || 0, time: epochDuration}]);
+          }
+          setLastEpochTime(now);
+        }
+        if (s.epoch > 0) {
+          setMetrics(p => ({
+            loss: [...p.loss.slice(-300), {e: s.epoch + s.batch/Math.max(s.total_batches,1), v: s.train_loss}],
+            valLoss: s.val_loss > 0 ? [...p.valLoss.slice(-300), {e: s.epoch, v: s.val_loss}] : p.valLoss,
+            acc: s.accuracy > 0 ? [...p.acc.slice(-300), {e: s.epoch, v: s.accuracy}] : p.acc,
+            lr: [...p.lr.slice(-300), {e: s.epoch + s.batch/Math.max(s.total_batches,1), v: s.learning_rate}],
+            beta: s.beta !== undefined ? [...p.beta.slice(-300), {e: s.epoch, v: s.beta}] : p.beta,
+            curvature: s.curvature !== undefined ? [...p.curvature.slice(-300), {e: s.epoch, v: s.curvature}] : p.curvature,
+            perplexity: s.perplexity > 0 ? [...p.perplexity.slice(-300), {e: s.epoch, v: s.perplexity}] : p.perplexity,
+          }));
+        }
+      } else if (data.type === 'log') addLog(data.data.message, data.data.level);
+    };
+    wsRef.current = ws;
+  }, [serverUrl, config]);
+
+  const disconnect = () => { if (wsRef.current) { wsRef.current.close(); wsRef.current = null; } };
+  const sendCommand = (cmd, extra = {}) => { if (wsRef.current?.readyState === WebSocket.OPEN) wsRef.current.send(JSON.stringify({command: cmd, ...extra})); };
+  const start = () => { 
+    if (!connected) { addLog('Not connected', 'error'); return; }
+    setStartTime(Date.now()); setElapsedTime(0); setLastEpochTime(Date.now()); setEpochTimes([]); setEpochHistory([]);
+    setMetrics({loss: [], acc: [], lr: [], beta: [], valLoss: [], curvature: [], perplexity: []});
+    sendCommand('configure', {config}); setTimeout(() => sendCommand('start'), 100);
+  };
+  const pause = () => sendCommand('pause');
+  const stop = () => { sendCommand('stop'); clearInterval(timerRef.current); };
+
+  // ============ AutoTune Functions ============
+  const startAutotune = (mode) => {
+    if (!connected) { addLog('Connect to server first', 'error'); return; }
+    
+    const space = AUTOTUNE_SPACES[mode];
+    const numRuns = space.runs;
+    
+    addLog(`🔧 Starting ${space.name}: ${numRuns} runs`, 'success');
+    setAutotuneMode(mode);
+    setAutotuneActive(true);
+    setAutotuneRuns([]);
+    setAutotuneCurrentRun(0);
+    setAutotuneTotalRuns(numRuns);
+    setAutotuneAnalysis(null);
+    
+    // Generate configs
+    let configs;
+    if (mode === 'smart') {
+      // Smart mode starts with a baseline, then adapts
+      configs = [{ ...config, _runIndex: 1, _params: { baseline: true } }];
+    } else {
+      configs = generateSearchConfigs(space, config, numRuns);
+    }
+    setAutotuneConfigs(configs);
+    
+    // Start first run
+    runAutotuneStep(configs[0], 0, []);
+  };
+  
+  const runAutotuneStep = (runConfig, runIndex, previousRuns) => {
+    setAutotuneCurrentRun(runIndex + 1);
+    addLog(`🔄 AutoTune Run ${runIndex + 1}/${autotuneTotalRuns || autotuneConfigs.length}: ω=${runConfig.lrOmega?.toFixed(1)}, α=${runConfig.lrAmplitude?.toFixed(2)}, gf=${runConfig.gfAlpha?.toFixed(2)}`);
+    
+    // Reset metrics
+    setStartTime(Date.now()); setElapsedTime(0); setLastEpochTime(Date.now()); setEpochTimes([]); setEpochHistory([]);
+    setMetrics({loss: [], acc: [], lr: [], beta: [], valLoss: [], curvature: [], perplexity: []});
+    
+    // Update config and start
+    setConfig(runConfig);
+    sendCommand('configure', { config: runConfig }); 
+    setTimeout(() => sendCommand('start'), 100);
+  };
+  
+  // Handle autotune run completion
+  useEffect(() => {
+    if (!autotuneActive) return;
+    if (state.status === 'completed' || state.status === 'error') {
+      // Save this run's results
+      const runResult = {
+        runIndex: autotuneCurrentRun,
+        config: autotuneConfigs[autotuneCurrentRun - 1],
+        params: autotuneConfigs[autotuneCurrentRun - 1]?._params || {},
+        accuracy: state.best_accuracy,
+        perplexity: state.perplexity,
+        trainLoss: state.train_loss,
+        valLoss: state.val_loss,
+        bestEpoch: state.best_epoch,
+        time: elapsedTime,
+      };
+      
+      const newRuns = [...autotuneRuns, runResult];
+      setAutotuneRuns(newRuns);
+      addLog(`✅ Run ${autotuneCurrentRun} complete: ${isPerplexityMetric ? `ppl=${state.perplexity?.toFixed(2)}` : `acc=${state.best_accuracy?.toFixed(2)}%`}`, 'success');
+      
+      // Check if more runs needed
+      if (autotuneCurrentRun < autotuneTotalRuns) {
+        if (autotuneMode === 'smart') {
+          // Smart mode: analyze and generate next config
+          generateSmartNextConfig(newRuns);
+        } else {
+          // Grid search: run next config
+          setTimeout(() => runAutotuneStep(autotuneConfigs[autotuneCurrentRun], autotuneCurrentRun, newRuns), 500);
+        }
+      } else {
+        // All runs complete - finalize
+        finalizeAutotune(newRuns);
+      }
+    }
+  }, [state.status, autotuneActive]);
+  
+  const generateSmartNextConfig = async (runs) => {
+    setAutotuneAnalyzing(true);
+    addLog('🧠 Claude analyzing results...', 'info');
+    
+    try {
+      const prompt = `You are optimizing neural network training parameters. Based on these results, suggest the next parameter configuration to try.
+
+Previous runs:
+${runs.map((r, i) => `Run ${i+1}: accuracy=${r.accuracy?.toFixed(2)}%, params=${JSON.stringify(r.params)}`).join('\n')}
+
+Current best: ${Math.max(...runs.map(r => r.accuracy || 0)).toFixed(2)}%
+
+Parameter ranges:
+- lrOmega: 3.0 to 10.0 (angular frequency, 6.0 is often good)
+- lrAmplitude: 0.01 to 0.15 (oscillation strength)
+- gfAlpha: 0.01 to 0.15 (gradient feedback strength)
+- lrDecay: 0.001 to 0.01 (learning rate decay)
+
+Respond with ONLY a JSON object with the next parameters to try:
+{"lrOmega": X, "lrAmplitude": Y, "gfAlpha": Z, "lrDecay": W, "reasoning": "brief explanation"}`;
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 500,
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+      
+      const data = await response.json();
+      let suggestion = data.content[0].text;
+      suggestion = suggestion.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const params = JSON.parse(suggestion);
+      
+      addLog(`🧠 Claude suggests: ω=${params.lrOmega}, α=${params.lrAmplitude} - ${params.reasoning}`, 'info');
+      
+      const nextConfig = {
+        ...config,
+        lrOmega: params.lrOmega || 6.0,
+        lrAmplitude: params.lrAmplitude || 0.08,
+        gfAlpha: params.gfAlpha || 0.05,
+        lrDecay: params.lrDecay || 0.003,
+        _runIndex: runs.length + 1,
+        _params: params,
+      };
+      
+      setAutotuneConfigs(prev => [...prev, nextConfig]);
+      setAutotuneAnalyzing(false);
+      setTimeout(() => runAutotuneStep(nextConfig, runs.length, runs), 500);
+      
+    } catch (err) {
+      addLog(`⚠️ Claude API error: ${err.message}. Using random params.`, 'warning');
+      setAutotuneAnalyzing(false);
+      // Fallback to random
+      const nextConfig = {
+        ...config,
+        lrOmega: 4 + Math.random() * 6,
+        lrAmplitude: 0.02 + Math.random() * 0.12,
+        gfAlpha: 0.02 + Math.random() * 0.1,
+        _runIndex: runs.length + 1,
+        _params: { fallback: true },
+      };
+      setAutotuneConfigs(prev => [...prev, nextConfig]);
+      setTimeout(() => runAutotuneStep(nextConfig, runs.length, runs), 500);
+    }
+  };
+  
+  const finalizeAutotune = async (runs) => {
+    setAutotuneActive(false);
+    addLog('🏁 AutoTune complete! Analyzing results...', 'success');
+    
+    // Sort by accuracy (or perplexity for LM)
+    const sorted = [...runs].sort((a, b) => {
+      if (isPerplexityMetric) return (a.perplexity || Infinity) - (b.perplexity || Infinity);
+      return (b.accuracy || 0) - (a.accuracy || 0);
+    });
+    
+    const best = sorted[0];
+    addLog(`🏆 Best run: #${best.runIndex} with ${isPerplexityMetric ? `ppl=${best.perplexity?.toFixed(2)}` : `acc=${best.accuracy?.toFixed(2)}%`}`, 'success');
+    
+    // For Smart mode, get Claude's analysis
+    if (autotuneMode === 'smart') {
+      setAutotuneAnalyzing(true);
+      try {
+        const prompt = `Analyze these hyperparameter tuning results and provide insights:
+
+Results (sorted by performance):
+${sorted.slice(0, 10).map((r, i) => `${i+1}. Run ${r.runIndex}: ${isPerplexityMetric ? `perplexity=${r.perplexity?.toFixed(2)}` : `accuracy=${r.accuracy?.toFixed(2)}%`}, params=${JSON.stringify(r.params)}`).join('\n')}
+
+Best configuration: ${JSON.stringify(best.params)}
+
+Provide a brief analysis (2-3 sentences) of:
+1. What parameter values worked best
+2. Any patterns you notice
+3. Recommendation for further tuning`;
+
+        const response = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 500,
+            messages: [{ role: "user", content: prompt }]
+          })
+        });
+        
+        const data = await response.json();
+        setAutotuneAnalysis({
+          best: best,
+          sorted: sorted,
+          aiInsights: data.content[0].text,
+        });
+        setAutotuneAnalyzing(false);
+      } catch (err) {
+        setAutotuneAnalysis({ best, sorted, aiInsights: 'Could not get AI analysis.' });
+        setAutotuneAnalyzing(false);
+      }
+    } else {
+      setAutotuneAnalysis({ best, sorted, aiInsights: null });
+    }
+    
+    setAutotuneShowPanel(true);
+  };
+  
+  const stopAutotune = () => {
+    setAutotuneActive(false);
+    sendCommand('stop');
+    addLog('🛑 AutoTune stopped', 'warning');
+  };
+  
+  const applyBestConfig = () => {
+    if (!autotuneAnalysis?.best?.config) return;
+    setConfig(prev => ({...prev, ...autotuneAnalysis.best.config}));
+    addLog('✅ Applied best configuration', 'success');
+    setAutotuneShowPanel(false);
+  };
+  // ============ End AutoTune Functions ============
+
+  const exportRun = () => {
+    const ds = currentDataset;
+    const enabledModules = [];
+    if (config.useConvergenceAnalysis) enabledModules.push('CA');
+    if (config.useGradientFeedback) enabledModules.push('GF');
+    if (config.usePeriodicLR) enabledModules.push('PLR');
+    if (config.useConvergenceDamper) enabledModules.push('CD');
+    if (config.useTemporalBuffer) enabledModules.push('TB');
+    if (config.useHarmonicInit) enabledModules.push('HI');
+    if (config.useMetaController) enabledModules.push('MC');
+    if (config.useCurvatureRegularizer) enabledModules.push('CR');
+    
+    const runData = {
+      metadata: { timestamp: new Date().toISOString(), run_id: `atf_run_${Date.now()}`, version: 'ATF v3.0' },
+      config: { 
+        dataset: config.dataset, dataset_type: ds.type, task: ds.task || null, metric: ds.metric || 'accuracy', 
+        epochs: config.epochs, batch_size: config.batchSize, learning_rate: config.learningRate, seed: config.seed, 
+        max_seq_length: config.maxSeqLength, block_size: config.blockSize, real_training: config.useRealTraining,
+        // Early stopping
+        early_stopping: config.useEarlyStopping, ca_patience: config.caPatience, ca_max_lr_reductions: config.caMaxLrReductions, ca_min_delta: config.caMinDelta,
+      },
+      modules: { 
+        enabled: enabledModules, 
+        early_stopping: { enabled: config.useEarlyStopping, patience: config.caPatience, max_lr_reductions: config.caMaxLrReductions, min_delta: config.caMinDelta, lr_factor: config.caLrFactor },
+        periodic_lr: config.usePeriodicLR ? { omega: config.lrOmega, amplitude: config.lrAmplitude, decay: config.lrDecay, step_mode: config.lrStepMode } : null,
+        gradient_feedback: config.useGradientFeedback ? { alpha: config.gfAlpha, omega: config.gfOmega, phi: config.gfPhi, clamp: config.gfClamp } : null,
+        convergence_damper: config.useConvergenceDamper ? { threshold: config.cdThreshold, alpha: config.cdAlphaDamp } : null,
+        harmonic_init: config.useHarmonicInit ? { omega: config.harmonicOmega, phi: config.harmonicPhi, amp_weight: config.harmonicAmpWeight } : null,
+      },
+      results: { status: state.status, best_accuracy: state.best_accuracy, best_perplexity: state.perplexity, best_epoch: state.best_epoch, final_train_loss: state.train_loss, final_val_loss: state.val_loss, total_time_seconds: elapsedTime, total_time_formatted: formatTime(elapsedTime), avg_epoch_time: epochTimes.length > 0 ? epochTimes.reduce((a,b) => a+b, 0) / epochTimes.length : 0, early_stopped: state.early_stopped || false },
+      epoch_history: epochHistory,
+      metrics_history: metrics,
+      logs: logs.map(l => ({time: l.time, level: l.level, message: l.message})),
+    };
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `atf_run_${config.dataset}_${timestamp}.json`;
+    const blob = new Blob([JSON.stringify(runData, null, 2)], {type: 'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+    addLog(`Run exported: ${filename}`, 'success');
+  };
+
+  useEffect(() => () => { if (wsRef.current) wsRef.current.close(); clearInterval(timerRef.current); }, []);
+  const isRunning = state.status === 'running';
+  const statusColors = {idle: 'bg-gray-600', running: 'bg-green-500 animate-pulse', paused: 'bg-yellow-500', completed: 'bg-blue-500', error: 'bg-red-500'};
+  const avgEpochTime = epochTimes.length > 0 ? epochTimes.reduce((a,b) => a+b, 0) / epochTimes.length : 0;
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-white text-sm">
+      <header className="bg-slate-800 border-b border-slate-700 px-3 py-1.5 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center"><Icons.Brain/></div>
+          <div><h1 className="font-bold text-sm">ATF Dashboard <span className="text-[9px] bg-purple-600 px-1 py-0.5 rounded ml-1">FULL SUITE</span></h1></div>
+        </div>
+        <div className="flex items-center gap-4 bg-slate-700/50 px-3 py-1 rounded-lg">
+          <div className="flex items-center gap-1.5"><Icons.Clock/><div><div className="text-[9px] text-gray-400">ELAPSED</div><div className="font-mono font-bold text-green-400">{formatTime(elapsedTime)}</div></div></div>
+          {avgEpochTime > 0 && state.status === 'running' && <div><div className="text-[9px] text-gray-400">ETA</div><div className="font-mono text-yellow-400">{formatTime(avgEpochTime * (config.epochs - state.epoch))}</div></div>}
+          {avgEpochTime > 0 && <div><div className="text-[9px] text-gray-400">AVG/EP</div><div className="font-mono text-gray-300">{formatTime(avgEpochTime)}</div></div>}
+        </div>
+        <div className="flex items-center gap-2">
+          {connected ? <span className="text-green-400"><Icons.Wifi/></span> : <span className="text-gray-500"><Icons.WifiOff/></span>}
+          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${statusColors[state.status]||'bg-gray-600'}`}>{state.status?.toUpperCase()}</span>
+          <button onClick={exportRun} className="p-1 hover:bg-slate-700 rounded text-green-400" title="Export Run"><Icons.Save/></button>
+        </div>
+      </header>
+
+      <div className="flex" style={{height: 'calc(100vh - 44px)'}}>
+        <aside className="w-72 bg-slate-800/50 border-r border-slate-700 overflow-y-auto scrollbar-thin p-1.5">
+          <Section title="🔌 Connection" color="green" defaultOpen={!connected}>
+            <input type="text" value={serverUrl} onChange={e => setServerUrl(e.target.value)} className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs mb-1.5" disabled={connected}/>
+            {!connected ? <button onClick={connect} disabled={connecting} className="w-full px-2 py-1 bg-green-600 hover:bg-green-500 disabled:bg-gray-600 rounded text-xs font-medium">{connecting ? 'Connecting...' : 'Connect'}</button>
+             : <button onClick={disconnect} className="w-full px-2 py-1 bg-red-600 hover:bg-red-500 rounded text-xs font-medium">Disconnect</button>}
+          </Section>
+
+          <Section title="📊 Dataset & Training" color="blue">
+            <div className="mb-2">
+              <div className="text-[10px] text-blue-400 font-medium mb-1">🖼️ Vision</div>
+              <select value={DATASETS.vision.find(d => d.value === config.dataset) ? config.dataset : ''} onChange={e => { if (e.target.value) { updateConfig('dataset', e.target.value); const ds = DATASETS.vision.find(d => d.value === e.target.value); if (ds) updateConfig('epochs', ds.epochs); }}} disabled={isRunning} className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs text-white disabled:opacity-50 mb-1">
+                <option value="">-- Select Vision --</option>
+                {DATASETS.vision.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+              </select>
+              
+              <div className="text-[10px] text-orange-400 font-medium mb-1 mt-2">🤖 BERT (GLUE)</div>
+              <select value={DATASETS.nlp_bert.find(d => d.value === config.dataset) ? config.dataset : ''} onChange={e => { if (e.target.value) { updateConfig('dataset', e.target.value); const ds = DATASETS.nlp_bert.find(d => d.value === e.target.value); if (ds) { updateConfig('epochs', ds.epochs); updateConfig('learningRate', 0.00002); updateConfig('batchSize', 32); updateConfig('caPatience', 1); updateConfig('caMaxLrReductions', 1); }}}} disabled={isRunning} className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs text-white disabled:opacity-50 mb-1">
+                <option value="">-- Select BERT --</option>
+                {DATASETS.nlp_bert.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+              </select>
+              
+              <div className="text-[10px] text-purple-400 font-medium mb-1 mt-2">📝 NanoGPT (LM)</div>
+              <select value={DATASETS.nlp_gpt.find(d => d.value === config.dataset) ? config.dataset : ''} onChange={e => { if (e.target.value) { updateConfig('dataset', e.target.value); const ds = DATASETS.nlp_gpt.find(d => d.value === e.target.value); if (ds) { updateConfig('epochs', ds.epochs); updateConfig('learningRate', 0.0003); updateConfig('batchSize', 64); updateConfig('caPatience', 2); updateConfig('caMaxLrReductions', 1); }}}} disabled={isRunning} className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-xs text-white disabled:opacity-50">
+                <option value="">-- Select NanoGPT --</option>
+                {DATASETS.nlp_gpt.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+              </select>
+            </div>
+            
+            <div className="p-1.5 bg-slate-700/50 rounded mb-2 text-[10px]">
+              <span className={`font-medium ${currentDataset.type === 'vision' ? 'text-blue-400' : currentDataset.type === 'bert' ? 'text-orange-400' : 'text-purple-400'}`}>
+                Selected: {currentDataset.label}
+              </span>
+              <span className="text-gray-500 ml-2">({currentDataset.type} • {currentDataset.metric || 'accuracy'})</span>
+            </div>
+            
+            <Select label="Mode" value={config.mode} onChange={v => updateConfig('mode', v)} options={[{value: 'baseline', label: 'Baseline'}, {value: 'minimal', label: 'Minimal'}, {value: 'full', label: 'Full'}]} disabled={isRunning}/>
+            <Slider label="Epochs" value={config.epochs} onChange={v => updateConfig('epochs', v)} min={1} max={200} step={1} disabled={isRunning}/>
+            <Slider label="Batch Size" value={config.batchSize} onChange={v => updateConfig('batchSize', v)} min={8} max={512} step={8} disabled={isRunning}/>
+            <Slider label="Learning Rate" value={config.learningRate} onChange={v => updateConfig('learningRate', v)} min={0.000001} max={0.01} step={0.000001} disabled={isRunning}/>
+            <Slider label="Seed" value={config.seed} onChange={v => updateConfig('seed', v)} min={1} max={9999} step={1} disabled={isRunning}/>
+            
+            {isNLP && (
+              <div className="mt-2 p-1.5 bg-orange-900/20 border border-orange-700/30 rounded">
+                <div className="text-[10px] text-orange-400 font-medium mb-1">NLP Settings</div>
+                {currentDataset.type === 'bert' && <Slider label="Max Seq Length" value={config.maxSeqLength} onChange={v => updateConfig('maxSeqLength', v)} min={32} max={512} step={32} disabled={isRunning}/>}
+                {currentDataset.type === 'nanogpt' && <Slider label="Block Size" value={config.blockSize} onChange={v => updateConfig('blockSize', v)} min={64} max={1024} step={64} disabled={isRunning}/>}
+              </div>
+            )}
+            
+            <div className="mt-2 p-1 bg-yellow-900/30 border border-yellow-700/50 rounded">
+              <Toggle label="🔥 Real Training" enabled={config.useRealTraining} onChange={v => updateConfig('useRealTraining', v)} disabled={isRunning}/>
+            </div>
+          </Section>
+
+          <Section title="⚡ Quick Config" color="yellow" defaultOpen={true}>
+            <div className="text-[9px] text-gray-400 mb-1">
+              Quick presets:
+            </div>
+            <select 
+              onChange={e => { if (e.target.value) { setQuickConfigText(PRESETS[e.target.value].cmd); e.target.value = ''; }}}
+              disabled={isRunning}
+              className="w-full px-2 py-1 bg-gray-800 border border-gray-600 rounded text-[10px] text-white mb-2"
+            >
+              <option value="">-- Select Preset --</option>
+              <optgroup label="🖼️ Vision">
+                <option value="cifar10-baseline">CIFAR-10 Baseline</option>
+                <option value="cifar10-atf">CIFAR-10 ATF ⭐</option>
+                <option value="cifar100-baseline">CIFAR-100 Baseline</option>
+                <option value="cifar100-atf">CIFAR-100 ATF ⭐</option>
+                <option value="mnist-atf">MNIST ATF</option>
+                <option value="fashion-atf">Fashion-MNIST ATF</option>
+              </optgroup>
+              <optgroup label="🤖 BERT">
+                <option value="bert-baseline">BERT Baseline</option>
+                <option value="bert-atf">BERT ATF ⭐</option>
+                <option value="bert-safe">BERT Safe (minimal)</option>
+                <option value="bert-fast">BERT Fast (baseline+intra)</option>
+              </optgroup>
+              <optgroup label="📝 NanoGPT">
+                <option value="gpt-baseline">NanoGPT Baseline</option>
+                <option value="gpt-atf">NanoGPT ATF ⭐</option>
+              </optgroup>
+              <optgroup label="🧪 Experimental">
+                <option value="aggressive">Aggressive Oscillation</option>
+                <option value="conservative">Conservative Stable</option>
+                <option value="fast-converge">Fast Convergence</option>
+              </optgroup>
+            </select>
+            <div className="text-[9px] text-gray-400 mb-1">
+              Or paste CLI/JSON:
+            </div>
+            <textarea 
+              value={quickConfigText}
+              onChange={e => setQuickConfigText(e.target.value)}
+              placeholder="--omega 6.0 --amp 0.08 --decay 0.003&#10;or JSON: {&quot;lrOmega&quot;: 6.0}"
+              className="w-full h-16 px-2 py-1 bg-gray-900 border border-gray-600 rounded text-[10px] font-mono text-green-400 placeholder-gray-600 resize-none"
+              disabled={isRunning}
+            />
+            {quickConfigError && <div className="text-[9px] text-red-400 mt-1">{quickConfigError}</div>}
+            <div className="flex gap-1 mt-1">
+              <button 
+                onClick={() => {
+                  try {
+                    const parsed = parseQuickConfig(quickConfigText);
+                    const keys = Object.keys(parsed);
+                    if (keys.length === 0) {
+                      setQuickConfigError('No valid parameters found');
+                      return;
+                    }
+                    keys.forEach(k => updateConfig(k, parsed[k]));
+                    setQuickConfigError('');
+                    addLog(`Applied ${keys.length} params: ${keys.join(', ')}`, 'success');
+                    setQuickConfigText('');
+                  } catch (e) {
+                    setQuickConfigError(e.message);
+                  }
+                }}
+                disabled={isRunning || !quickConfigText.trim()}
+                className="flex-1 px-2 py-1 bg-green-600 hover:bg-green-500 disabled:bg-gray-600 rounded text-[10px] font-medium"
+              >
+                Apply
+              </button>
+              <button 
+                onClick={() => {
+                  const cli = exportConfigToCLI(config);
+                  setQuickConfigText(cli || '# Default config');
+                  addLog('Exported current config to CLI', 'info');
+                }}
+                disabled={isRunning}
+                className="px-2 py-1 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 rounded text-[10px] font-medium"
+                title="Export to CLI"
+              >
+                Export
+              </button>
+              <button 
+                onClick={() => {
+                  const cli = exportConfigToCLI(config);
+                  navigator.clipboard.writeText(cli);
+                  addLog('Config copied to clipboard!', 'success');
+                }}
+                disabled={isRunning}
+                className="px-2 py-1 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-600 rounded text-[10px] font-medium"
+                title="Copy to clipboard"
+              >
+                Copy
+              </button>
+            </div>
+            <div className="mt-2 text-[8px] text-gray-500">
+              <div className="font-medium text-gray-400 mb-0.5">Special flags:</div>
+              <div className="text-yellow-400">--baseline (all modules OFF)</div>
+              <div className="text-green-400">--atf (all modules ON)</div>
+              <div className="font-medium text-gray-400 mt-1 mb-0.5">Core params:</div>
+              <div>--omega, --amp, --decay, --phi</div>
+              <div>--patience, --max-red, --gf-alpha</div>
+              <div className="font-medium text-gray-400 mt-1 mb-0.5">Training:</div>
+              <div>--epochs, --batch, --lr, --seed</div>
+              <div className="font-medium text-gray-400 mt-1 mb-0.5">NLP:</div>
+              <div>--seq-len, --block-size, --intra-val</div>
+              <div className="font-medium text-gray-400 mt-1 mb-0.5">Advanced:</div>
+              <div>--min-lr, --max-lr, --val-steps</div>
+            </div>
+          </Section>
+
+          <Section title="⚡ ATF Modules" color="purple">
+            <ModuleSection title="Convergence Analysis" enabled={config.useConvergenceAnalysis} onToggle={v => updateConfig('useConvergenceAnalysis', v)} color="green" disabled={isRunning}>
+              <Slider label="Patience" value={config.caPatience} onChange={v => updateConfig('caPatience', v)} min={1} max={20} step={1} disabled={isRunning}/>
+              <Slider label="Min Delta" value={config.caMinDelta} onChange={v => updateConfig('caMinDelta', v)} min={0.001} max={0.05} step={0.001} disabled={isRunning}/>
+              <Slider label="EMA Alpha" value={config.caEmaAlpha} onChange={v => updateConfig('caEmaAlpha', v)} min={0.1} max={0.9} step={0.1} disabled={isRunning}/>
+              <Slider label="LR Factor" value={config.caLrFactor} onChange={v => updateConfig('caLrFactor', v)} min={0.1} max={0.9} step={0.1} disabled={isRunning}/>
+              <div className="mt-1 pt-1 border-t border-gray-700">
+                <Toggle label="🛑 Early Stopping" desc="Stop when converged" enabled={config.useEarlyStopping} onChange={v => updateConfig('useEarlyStopping', v)} disabled={isRunning}/>
+                {config.useEarlyStopping && (
+                  <Slider label="Max LR Reductions" value={config.caMaxLrReductions} onChange={v => updateConfig('caMaxLrReductions', v)} min={1} max={5} step={1} disabled={isRunning}/>
+                )}
+              </div>
+              <div className="mt-1 pt-1 border-t border-gray-700">
+                <Toggle label="⏱️ Intra-Epoch Val" desc="Validate mid-epoch (for BERT)" enabled={config.useIntraEpochVal} onChange={v => updateConfig('useIntraEpochVal', v)} disabled={isRunning}/>
+                {config.useIntraEpochVal && (
+                  <Slider label="Val Every N Steps" value={config.intraEpochSteps} onChange={v => updateConfig('intraEpochSteps', v)} min={50} max={500} step={50} disabled={isRunning}/>
+                )}
+              </div>
+            </ModuleSection>
+            <ModuleSection title="Gradient Feedback" enabled={config.useGradientFeedback} onToggle={v => updateConfig('useGradientFeedback', v)} color="yellow" disabled={isRunning}>
+              <Slider label="α (strength)" value={config.gfAlpha} onChange={v => updateConfig('gfAlpha', v)} min={0.01} max={0.2} step={0.01} disabled={isRunning}/>
+              <Slider label="ω (omega)" value={config.gfOmega} onChange={v => updateConfig('gfOmega', v)} min={1} max={12} step={0.1} disabled={isRunning}/>
+              <Slider label="φ (phi)" value={config.gfPhi} onChange={v => updateConfig('gfPhi', v)} min={0} max={3.14} step={0.1} disabled={isRunning}/>
+              <Slider label="EMA Alpha" value={config.gfEmaAlpha} onChange={v => updateConfig('gfEmaAlpha', v)} min={0.1} max={0.9} step={0.1} disabled={isRunning}/>
+              <Slider label="Clamp" value={config.gfClamp} onChange={v => updateConfig('gfClamp', v)} min={0.05} max={0.5} step={0.05} disabled={isRunning}/>
+            </ModuleSection>
+            <ModuleSection title="Periodic LR" enabled={config.usePeriodicLR} onToggle={v => updateConfig('usePeriodicLR', v)} color="purple" disabled={isRunning}>
+              <Slider label="ω (omega)" value={config.lrOmega} onChange={v => updateConfig('lrOmega', v)} min={1} max={12} step={0.1} disabled={isRunning}/>
+              <Slider label="α (amplitude)" value={config.lrAmplitude} onChange={v => updateConfig('lrAmplitude', v)} min={0} max={0.2} step={0.01} disabled={isRunning}/>
+              <Slider label="k (decay)" value={config.lrDecay} onChange={v => updateConfig('lrDecay', v)} min={0} max={0.01} step={0.001} disabled={isRunning}/>
+              <Slider label="φ (phi)" value={config.lrPhi} onChange={v => updateConfig('lrPhi', v)} min={0} max={3.14} step={0.1} disabled={isRunning}/>
+              <Select label="Step Mode" value={config.lrStepMode} onChange={v => updateConfig('lrStepMode', v)} options={[{value: 'epoch', label: 'Per Epoch'}, {value: 'iter', label: 'Per Iteration'}]} disabled={isRunning}/>
+            </ModuleSection>
+            <ModuleSection title="Convergence Damper" enabled={config.useConvergenceDamper} onToggle={v => updateConfig('useConvergenceDamper', v)} color="blue" disabled={isRunning}>
+              <Slider label="β Threshold" value={config.cdThreshold} onChange={v => updateConfig('cdThreshold', v)} min={0.001} max={0.05} step={0.001} disabled={isRunning}/>
+              <Slider label="α (damping)" value={config.cdAlphaDamp} onChange={v => updateConfig('cdAlphaDamp', v)} min={0.1} max={0.9} step={0.1} disabled={isRunning}/>
+              <Slider label="ε (epsilon)" value={config.cdEpsilon} onChange={v => updateConfig('cdEpsilon', v)} min={0.0001} max={0.01} step={0.0001} disabled={isRunning}/>
+            </ModuleSection>
+            <ModuleSection title="Temporal Buffer" enabled={config.useTemporalBuffer} onToggle={v => updateConfig('useTemporalBuffer', v)} color="cyan" disabled={isRunning}>
+              <Slider label="Window Size" value={config.tbSize} onChange={v => updateConfig('tbSize', v)} min={3} max={30} step={1} disabled={isRunning}/>
+              <Slider label="Decay (λ)" value={config.tbDecay} onChange={v => updateConfig('tbDecay', v)} min={0.01} max={0.2} step={0.01} disabled={isRunning}/>
+              <Slider label="Push Strength" value={config.tbPushStrength} onChange={v => updateConfig('tbPushStrength', v)} min={0.001} max={0.05} step={0.001} disabled={isRunning}/>
+            </ModuleSection>
+            <ModuleSection title="Harmonic Init" enabled={config.useHarmonicInit} onToggle={v => updateConfig('useHarmonicInit', v)} color="orange" disabled={isRunning}>
+              <Slider label="ω (omega)" value={config.harmonicOmega} onChange={v => updateConfig('harmonicOmega', v)} min={1} max={12} step={0.1} disabled={isRunning}/>
+              <Slider label="φ (phi)" value={config.harmonicPhi} onChange={v => updateConfig('harmonicPhi', v)} min={0} max={3.14} step={0.1} disabled={isRunning}/>
+              <Slider label="Weight Amp" value={config.harmonicAmpWeight} onChange={v => updateConfig('harmonicAmpWeight', v)} min={0.001} max={0.1} step={0.001} disabled={isRunning}/>
+              <Slider label="Bias Amp" value={config.harmonicAmpBias} onChange={v => updateConfig('harmonicAmpBias', v)} min={0.0001} max={0.05} step={0.0001} disabled={isRunning}/>
+              <Slider label="Warmup Epochs" value={config.warmupEpochs} onChange={v => updateConfig('warmupEpochs', v)} min={0} max={5} step={1} disabled={isRunning}/>
+              <Select label="Mode" value={config.harmonicMode} onChange={v => updateConfig('harmonicMode', v)} options={[{value: 'sinlog', label: 'Sin-Log'}, {value: 'sinusoid', label: 'Sinusoid'}, {value: 'no-op', label: 'Disabled'}]} disabled={isRunning}/>
+            </ModuleSection>
+            <ModuleSection title="Meta Controller" enabled={config.useMetaController} onToggle={v => updateConfig('useMetaController', v)} color="pink" disabled={isRunning}>
+              <Slider label="Worsen Patience" value={config.mcPatience} onChange={v => updateConfig('mcPatience', v)} min={1} max={10} step={1} disabled={isRunning}/>
+              <Slider label="No Improve Pat." value={config.mcNoImprovePatience} onChange={v => updateConfig('mcNoImprovePatience', v)} min={2} max={15} step={1} disabled={isRunning}/>
+              <Slider label="LR Drop" value={config.mcLrFactor} onChange={v => updateConfig('mcLrFactor', v)} min={0.1} max={0.9} step={0.1} disabled={isRunning}/>
+              <Slider label="Min LR" value={config.mcMinLr} onChange={v => updateConfig('mcMinLr', v)} min={0.000001} max={0.0001} step={0.000001} disabled={isRunning}/>
+              <Slider label="Max LR" value={config.mcMaxLr} onChange={v => updateConfig('mcMaxLr', v)} min={0.001} max={0.1} step={0.001} disabled={isRunning}/>
+            </ModuleSection>
+            <ModuleSection title="Curvature Reg" enabled={config.useCurvatureRegularizer} onToggle={v => updateConfig('useCurvatureRegularizer', v)} color="red" disabled={isRunning}>
+              <Slider label="λ (strength)" value={config.curvatureLambda} onChange={v => updateConfig('curvatureLambda', v)} min={0.001} max={0.1} step={0.001} disabled={isRunning}/>
+              <Slider label="Threshold" value={config.curvatureThreshold} onChange={v => updateConfig('curvatureThreshold', v)} min={0.0001} max={0.01} step={0.0001} disabled={isRunning}/>
+              <Slider label="Momentum" value={config.curvatureMomentum} onChange={v => updateConfig('curvatureMomentum', v)} min={0.5} max={0.99} step={0.01} disabled={isRunning}/>
+              <Toggle label="Fisher Diagonal" enabled={config.useFisherDiagonal} onChange={v => updateConfig('useFisherDiagonal', v)} disabled={isRunning}/>
+            </ModuleSection>
+          </Section>
+          
+          {/* AutoTune Section */}
+          <Section title="🔧 AutoTune" color="gradient">
+            <div className="space-y-2">
+              <div className="text-[10px] text-gray-400 mb-2">Automatic hyperparameter search</div>
+              
+              {!autotuneActive ? (
+                <>
+                  <button onClick={() => startAutotune('quick')} disabled={!connected || isRunning} 
+                    className="w-full px-2 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 rounded text-xs font-medium flex items-center justify-center gap-1">
+                    <Icons.Zap/> Quick Tune <span className="text-[9px] text-blue-300">(5 runs)</span>
+                  </button>
+                  <button onClick={() => startAutotune('full')} disabled={!connected || isRunning}
+                    className="w-full px-2 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 rounded text-xs font-medium flex items-center justify-center gap-1">
+                    <Icons.Tune/> Full Tune <span className="text-[9px] text-purple-300">(15 runs)</span>
+                  </button>
+                  <button onClick={() => startAutotune('smart')} disabled={!connected || isRunning}
+                    className="w-full px-2 py-1.5 bg-gradient-to-r from-pink-600 to-orange-500 hover:from-pink-500 hover:to-orange-400 disabled:bg-gray-700 rounded text-xs font-medium flex items-center justify-center gap-1">
+                    <Icons.Sparkles/> Smart Tune <span className="text-[9px] text-pink-200">(AI-guided)</span>
+                  </button>
+                  
+                  {autotuneAnalysis && (
+                    <button onClick={() => setAutotuneShowPanel(true)} 
+                      className="w-full px-2 py-1 bg-green-600/30 border border-green-600 hover:bg-green-600/50 rounded text-xs flex items-center justify-center gap-1">
+                      <Icons.Trophy/> View Results
+                    </button>
+                  )}
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <div className="p-2 bg-slate-700/50 rounded">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-[10px] text-gray-400">{AUTOTUNE_SPACES[autotuneMode]?.name}</span>
+                      <span className="text-xs font-bold text-yellow-400">{autotuneCurrentRun}/{autotuneTotalRuns}</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-yellow-500 to-green-500 transition-all" 
+                        style={{width: `${(autotuneCurrentRun/autotuneTotalRuns)*100}%`}}/>
+                    </div>
+                    {autotuneAnalyzing && (
+                      <div className="mt-1 text-[10px] text-pink-400 animate-pulse flex items-center gap-1">
+                        <Icons.Sparkles/> Claude analyzing...
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={stopAutotune} className="w-full px-2 py-1 bg-red-600 hover:bg-red-500 rounded text-xs font-medium">
+                    Stop AutoTune
+                  </button>
+                </div>
+              )}
+              
+              {autotuneRuns.length > 0 && !autotuneActive && (
+                <div className="mt-2 p-1.5 bg-slate-700/30 rounded">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[9px] text-gray-500">Results ({autotuneRuns.length} runs):</span>
+                    <div className="flex gap-1">
+                      <button 
+                        onClick={() => {
+                          const best = [...autotuneRuns].sort((a,b) => (b.accuracy||0) - (a.accuracy||0))[0];
+                          if (best?.params) {
+                            const cli = Object.entries(best.params).map(([k,v]) => `--${k} ${v}`).join(' ');
+                            navigator.clipboard.writeText(cli);
+                            addLog('Best config copied!', 'success');
+                          }
+                        }}
+                        className="px-1.5 py-0.5 bg-purple-600 hover:bg-purple-500 rounded text-[8px]"
+                        title="Copy best config"
+                      >
+                        Copy Best
+                      </button>
+                      <button 
+                        onClick={() => {
+                          const best = [...autotuneRuns].sort((a,b) => (b.accuracy||0) - (a.accuracy||0))[0];
+                          if (best?.params) {
+                            Object.entries(best.params).forEach(([k,v]) => updateConfig(k, v));
+                            addLog('Best config applied!', 'success');
+                          }
+                        }}
+                        className="px-1.5 py-0.5 bg-green-600 hover:bg-green-500 rounded text-[8px]"
+                        title="Apply best config"
+                      >
+                        Apply Best
+                      </button>
+                    </div>
+                  </div>
+                  <div className="max-h-28 overflow-y-auto">
+                    {[...autotuneRuns].sort((a,b) => (b.accuracy||0) - (a.accuracy||0)).slice(0, 5).map((r, i) => (
+                      <div key={i} className={`text-[10px] flex justify-between items-center py-0.5 border-b border-gray-700/50 ${i === 0 ? 'bg-green-900/20' : ''}`}>
+                        <span className="text-gray-400">#{r.runIndex} {i === 0 && '🏆'}</span>
+                        <span className={i === 0 ? 'text-green-400 font-bold' : 'text-gray-300'}>
+                          {isPerplexityMetric ? `ppl=${r.perplexity?.toFixed(1)}` : `${r.accuracy?.toFixed(2)}%`}
+                        </span>
+                        <div className="flex gap-0.5">
+                          <button 
+                            onClick={() => {
+                              if (r.params) {
+                                const cli = Object.entries(r.params).map(([k,v]) => `--${k} ${v}`).join(' ');
+                                navigator.clipboard.writeText(cli);
+                                addLog(`Run #${r.runIndex} config copied`, 'info');
+                              }
+                            }}
+                            className="px-1 text-[8px] text-blue-400 hover:text-blue-300"
+                            title="Copy this config"
+                          >
+                            📋
+                          </button>
+                          <button 
+                            onClick={() => {
+                              if (r.params) {
+                                Object.entries(r.params).forEach(([k,v]) => updateConfig(k, v));
+                                addLog(`Run #${r.runIndex} config applied`, 'success');
+                              }
+                            }}
+                            className="px-1 text-[8px] text-green-400 hover:text-green-300"
+                            title="Apply this config"
+                          >
+                            ✓
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {autotuneRuns.length > 5 && (
+                    <div className="text-[8px] text-gray-500 text-center mt-1">
+                      +{autotuneRuns.length - 5} more runs
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </Section>
+        </aside>
+
+        <main className="flex-1 overflow-y-auto bg-slate-900">
+          <div className="bg-slate-800 border-b border-slate-700 px-3 py-1.5 flex items-center justify-between sticky top-0 z-10">
+            <div className="flex gap-1.5">
+              {state.status !== 'running' ? <button onClick={start} disabled={!connected} className="flex items-center gap-1.5 px-3 py-1 bg-green-600 hover:bg-green-500 disabled:bg-gray-600 rounded text-xs font-medium"><Icons.Play/> Start</button>
+               : <button onClick={pause} className="flex items-center gap-1.5 px-3 py-1 bg-yellow-600 hover:bg-yellow-500 rounded text-xs font-medium"><Icons.Pause/> Pause</button>}
+              <button onClick={stop} disabled={state.status === 'idle'} className="flex items-center gap-1.5 px-3 py-1 bg-red-600 hover:bg-red-500 disabled:bg-gray-600 rounded text-xs font-medium"><Icons.Stop/> Stop</button>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="text-center"><div className="text-[9px] text-gray-400">EPOCH</div><div className="font-mono font-bold">{state.epoch}<span className="text-gray-500 text-xs">/{config.epochs}</span></div></div>
+              <div className="text-center"><div className="text-[9px] text-gray-400">BATCH</div><div className="font-mono font-bold">{state.batch}<span className="text-gray-500 text-xs">/{state.total_batches||'?'}</span></div></div>
+              <div className="w-24 h-1.5 bg-gray-700 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-blue-500 to-purple-500" style={{width: `${(state.epoch/config.epochs)*100}%`}}/></div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`px-2 py-0.5 rounded text-[10px] ${currentDataset.type === 'vision' ? 'bg-blue-900/50 text-blue-300' : currentDataset.type === 'bert' ? 'bg-orange-900/50 text-orange-300' : 'bg-purple-900/50 text-purple-300'}`}>{currentDataset.type.toUpperCase()}</span>
+              {config.useRealTraining && <span className="px-2 py-0.5 bg-green-900/50 border border-green-700 rounded text-[10px]"><Icons.Zap className="inline w-3 h-3"/> Real</span>}
+            </div>
+          </div>
+
+          <div className="p-2">
+            <div className="grid grid-cols-6 gap-1.5 mb-2">
+              {isPerplexityMetric ? (
+                <MetricBox label="Perplexity" value={state.perplexity?.toFixed(2)||'—'} unit="" color="purple"/>
+              ) : (
+                <MetricBox label="Best Acc" value={state.best_accuracy?.toFixed(2)||'—'} unit="%" color="green"/>
+              )}
+              <MetricBox label={isPerplexityMetric ? "Val PPL" : "Curr Acc"} value={isPerplexityMetric ? state.val_loss?.toFixed(2)||'—' : state.accuracy?.toFixed(2)||'—'} unit={isPerplexityMetric ? "" : "%"} color="cyan"/>
+              <MetricBox label="Train Loss" value={state.train_loss?.toFixed(4)||'—'} unit="" color="blue"/>
+              <MetricBox label="Val Loss" value={state.val_loss?.toFixed(4)||'—'} unit="" color="purple"/>
+              <MetricBox label="LR" value={(state.learning_rate*1000)?.toFixed(3)||'—'} unit="×10⁻³" color="yellow"/>
+              <MetricBox label="Best @ Ep" value={state.best_epoch||'—'} unit="" color="gray"/>
+            </div>
+            
+            <div className="grid grid-cols-6 gap-1.5 mb-2">
+              <MetricBox label="β" value={state.beta?.toFixed(4)||'—'} unit="" color="orange" small/>
+              <MetricBox label="ω" value={state.omega?.toFixed(1)||'6.0'} unit="" color="purple" small/>
+              <MetricBox label="R²" value={state.r2?.toFixed(3)||'—'} unit="" color="blue" small/>
+              <MetricBox label="Conf" value={state.confidence?.toFixed(2)||'—'} unit="" color="cyan" small/>
+              <MetricBox label="Curv" value={state.curvature?.toExponential(1)||'—'} unit="" color="pink" small/>
+              <div className="bg-gray-800/60 border-l-2 border-gray-500 rounded px-2 py-1">
+                <div className="text-[9px] text-gray-500">FLAGS</div>
+                <div className="flex gap-1 text-[10px]">
+                  <span className={state.stillness ? 'text-yellow-400' : 'text-gray-600'}>STILL</span>
+                  <span className={state.lr_reduced ? 'text-red-400' : 'text-gray-600'}>LR↓</span>
+                  <span className={state.checkpoint ? 'text-green-400' : 'text-gray-600'}>CKPT</span>
+                  <span className={state.early_stopped ? 'text-red-500 font-bold animate-pulse' : 'text-gray-600'}>STOP</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-1.5 mb-2">
+              <Chart data={metrics.loss} dataKey="v" color="#3b82f6" title="📉 Train Loss"/>
+              {isPerplexityMetric ? (
+                <Chart data={metrics.perplexity} dataKey="v" color="#a855f7" title="📊 Perplexity"/>
+              ) : (
+                <Chart data={metrics.acc} dataKey="v" color="#22c55e" title="📈 Accuracy"/>
+              )}
+              <Chart data={metrics.lr} dataKey="v" color="#eab308" title="⚡ Learning Rate"/>
+              <Chart data={metrics.valLoss} dataKey="v" color="#8b5cf6" title="📊 Val Loss"/>
+              <Chart data={metrics.beta} dataKey="v" color="#f97316" title="🎯 β (Convergence)"/>
+              <Chart data={metrics.curvature} dataKey="v" color="#ec4899" title="📐 Curvature"/>
+            </div>
+
+            <div className="bg-slate-800 border border-slate-700 rounded p-2 mb-2">
+              <div className="text-[10px] text-gray-400 mb-1">📋 Configuration</div>
+              <div className="font-mono text-[10px] text-gray-300 bg-slate-900 rounded p-1.5">
+                Dataset={currentDataset.label} | Type={currentDataset.type.toUpperCase()} | Task={currentDataset.task || 'classification'} | Metric={currentDataset.metric || 'accuracy'}<br/>
+                LR={config.learningRate.toExponential(1)} | Batch={config.batchSize} | Epochs={config.epochs} | Seed={config.seed}<br/>
+                Modules: {config.useConvergenceAnalysis ? 'CA✓' : 'CA×'} {config.useGradientFeedback ? 'GF✓' : 'GF×'} {config.usePeriodicLR ? 'PLR✓' : 'PLR×'} {config.useConvergenceDamper ? 'CD✓' : 'CD×'} {config.useTemporalBuffer ? 'TB✓' : 'TB×'} {config.useHarmonicInit ? 'HI✓' : 'HI×'} {config.useMetaController ? 'MC✓' : 'MC×'} {config.useCurvatureRegularizer ? 'CR✓' : 'CR×'}<br/>
+                PLR: ω={config.lrOmega}, amp={config.lrAmplitude}, decay={config.lrDecay}, mode={config.lrStepMode}
+              </div>
+            </div>
+
+            {/* ATF Live Diagram */}
+            <div className="bg-slate-800 border border-slate-700 rounded p-2 mb-2">
+              <div className="text-[10px] text-gray-400 mb-1">🔄 ATF Live Architecture</div>
+              <svg viewBox="0 0 900 280" className="w-full h-48 bg-slate-900 rounded">
+                <defs>
+                  {/* Animated gradient for active connections */}
+                  <linearGradient id="flowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#3b82f6" stopOpacity="0">
+                      <animate attributeName="offset" values="-1;1" dur="1.5s" repeatCount="indefinite"/>
+                    </stop>
+                    <stop offset="50%" stopColor="#3b82f6" stopOpacity="1">
+                      <animate attributeName="offset" values="-0.5;1.5" dur="1.5s" repeatCount="indefinite"/>
+                    </stop>
+                    <stop offset="100%" stopColor="#3b82f6" stopOpacity="0">
+                      <animate attributeName="offset" values="0;2" dur="1.5s" repeatCount="indefinite"/>
+                    </stop>
+                  </linearGradient>
+                  
+                  {/* Pulse animation filter */}
+                  <filter id="glow">
+                    <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                    <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                  </filter>
+                  
+                  {/* Arrow marker */}
+                  <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#475569"/>
+                  </marker>
+                  <marker id="arrowheadActive" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6"/>
+                  </marker>
+                </defs>
+                
+                {/* Background grid */}
+                <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                  <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1e293b" strokeWidth="0.5"/>
+                </pattern>
+                <rect width="100%" height="100%" fill="url(#grid)"/>
+                
+                {/* CONNECTIONS - drawn first so they're behind boxes */}
+                {/* Training Loop to modules */}
+                <path d={`M 170 140 Q 220 100 280 100`} fill="none" stroke={state.status === 'running' && config.useHarmonicInit ? '#3b82f6' : '#475569'} strokeWidth="2" markerEnd={state.status === 'running' ? 'url(#arrowheadActive)' : 'url(#arrowhead)'}/>
+                <path d={`M 170 140 L 280 140`} fill="none" stroke={state.status === 'running' && config.useGradientFeedback ? '#22c55e' : '#475569'} strokeWidth="2" markerEnd={state.status === 'running' ? 'url(#arrowheadActive)' : 'url(#arrowhead)'}/>
+                <path d={`M 170 140 Q 220 180 280 180`} fill="none" stroke={state.status === 'running' && config.usePeriodicLR ? '#a855f7' : '#475569'} strokeWidth="2" markerEnd={state.status === 'running' ? 'url(#arrowheadActive)' : 'url(#arrowhead)'}/>
+                <path d={`M 170 140 Q 220 220 280 220`} fill="none" stroke={state.status === 'running' && config.useTemporalBuffer ? '#06b6d4' : '#475569'} strokeWidth="2" markerEnd={state.status === 'running' ? 'url(#arrowheadActive)' : 'url(#arrowhead)'}/>
+                
+                {/* Module interconnections */}
+                <path d={`M 400 100 L 470 100`} fill="none" stroke={config.useConvergenceAnalysis ? '#22c55e' : '#475569'} strokeWidth="1.5" markerEnd="url(#arrowhead)"/>
+                <path d={`M 400 140 Q 440 120 470 100`} fill="none" stroke={config.useGradientFeedback && config.useConvergenceAnalysis ? '#22c55e' : '#475569'} strokeWidth="1.5" strokeDasharray={config.useGradientFeedback ? '0' : '4'}/>
+                <path d={`M 400 180 L 470 180`} fill="none" stroke={config.useConvergenceDamper ? '#3b82f6' : '#475569'} strokeWidth="1.5" markerEnd="url(#arrowhead)"/>
+                <path d={`M 400 220 Q 440 200 470 180`} fill="none" stroke={config.useTemporalBuffer && config.useConvergenceDamper ? '#06b6d4' : '#475569'} strokeWidth="1.5" strokeDasharray={config.useTemporalBuffer ? '0' : '4'}/>
+                
+                {/* To Meta Controller */}
+                <path d={`M 590 100 Q 640 140 690 140`} fill="none" stroke={config.useMetaController ? '#f97316' : '#475569'} strokeWidth="1.5" markerEnd="url(#arrowhead)"/>
+                <path d={`M 590 180 Q 640 160 690 140`} fill="none" stroke={config.useMetaController ? '#f97316' : '#475569'} strokeWidth="1.5" markerEnd="url(#arrowhead)"/>
+                
+                {/* Meta to Curvature */}
+                <path d={`M 810 140 L 810 220`} fill="none" stroke={config.useCurvatureRegularizer ? '#ec4899' : '#475569'} strokeWidth="1.5" strokeDasharray={config.useCurvatureRegularizer ? '0' : '4'}/>
+                
+                {/* Feedback loop back to training */}
+                <path d={`M 690 165 Q 450 260 170 165`} fill="none" stroke={state.lr_reduced ? '#ef4444' : (state.status === 'running' ? '#475569' : '#334155')} strokeWidth={state.lr_reduced ? '3' : '1.5'} strokeDasharray="6" markerEnd="url(#arrowhead)" opacity="0.6"/>
+                
+                {/* MODULE BOXES */}
+                
+                {/* Training Loop - Center hub */}
+                <g transform="translate(70, 105)">
+                  <rect width="100" height="70" rx="8" fill={state.status === 'running' ? '#1e40af' : '#1e293b'} stroke={state.status === 'running' ? '#3b82f6' : '#475569'} strokeWidth="2">
+                    {state.status === 'running' && <animate attributeName="stroke-opacity" values="1;0.5;1" dur="1s" repeatCount="indefinite"/>}
+                  </rect>
+                  <text x="50" y="20" textAnchor="middle" fill="#93c5fd" fontSize="10" fontWeight="bold">TRAINING</text>
+                  <text x="50" y="35" textAnchor="middle" fill="#60a5fa" fontSize="9">LOOP</text>
+                  <text x="50" y="52" textAnchor="middle" fill={state.status === 'running' ? '#fbbf24' : '#6b7280'} fontSize="9" fontFamily="monospace">
+                    {state.status === 'running' ? `E${state.epoch} B${state.batch}` : 'idle'}
+                  </text>
+                  <text x="50" y="64" textAnchor="middle" fill="#9ca3af" fontSize="8">loss: {state.train_loss?.toFixed(4) || '—'}</text>
+                </g>
+                
+                {/* Harmonic Init */}
+                <g transform="translate(280, 70)">
+                  <rect width="120" height="55" rx="6" fill={config.useHarmonicInit ? '#1e293b' : '#0f172a'} stroke={config.useHarmonicInit ? (state.epoch <= config.warmupEpochs ? '#f97316' : '#22c55e') : '#374151'} strokeWidth={config.useHarmonicInit ? '2' : '1'} opacity={config.useHarmonicInit ? 1 : 0.4}>
+                    {config.useHarmonicInit && state.epoch <= config.warmupEpochs && <animate attributeName="stroke" values="#f97316;#fbbf24;#f97316" dur="0.8s" repeatCount="indefinite"/>}
+                  </rect>
+                  <text x="60" y="18" textAnchor="middle" fill={config.useHarmonicInit ? '#fbbf24' : '#6b7280'} fontSize="9" fontWeight="bold">🎵 Harmonic Init</text>
+                  <text x="60" y="32" textAnchor="middle" fill={config.useHarmonicInit ? '#d1d5db' : '#4b5563'} fontSize="8" fontFamily="monospace">ω={config.harmonicOmega} φ={config.harmonicPhi?.toFixed(2)}</text>
+                  <text x="60" y="45" textAnchor="middle" fill={state.epoch <= config.warmupEpochs ? '#fbbf24' : '#22c55e'} fontSize="8">
+                    {config.useHarmonicInit ? (state.epoch <= config.warmupEpochs ? '⏳ warmup' : '✓ done') : '○ OFF'}
+                  </text>
+                </g>
+                
+                {/* Gradient Feedback */}
+                <g transform="translate(280, 115)">
+                  <rect width="120" height="55" rx="6" fill={config.useGradientFeedback ? '#1e293b' : '#0f172a'} stroke={config.useGradientFeedback ? '#22c55e' : '#374151'} strokeWidth={config.useGradientFeedback ? '2' : '1'} opacity={config.useGradientFeedback ? 1 : 0.4}>
+                    {config.useGradientFeedback && state.status === 'running' && <animate attributeName="stroke-opacity" values="1;0.6;1" dur="1.2s" repeatCount="indefinite"/>}
+                  </rect>
+                  <text x="60" y="18" textAnchor="middle" fill={config.useGradientFeedback ? '#4ade80' : '#6b7280'} fontSize="9" fontWeight="bold">📈 Gradient FB</text>
+                  <text x="60" y="32" textAnchor="middle" fill={config.useGradientFeedback ? '#d1d5db' : '#4b5563'} fontSize="8" fontFamily="monospace">α={config.gfAlpha} ω={config.gfOmega}</text>
+                  <text x="60" y="45" textAnchor="middle" fill={config.useGradientFeedback ? '#22c55e' : '#6b7280'} fontSize="8">
+                    {config.useGradientFeedback ? (state.status === 'running' ? '● active' : '○ ready') : '○ OFF'}
+                  </text>
+                </g>
+                
+                {/* Periodic LR */}
+                <g transform="translate(280, 160)">
+                  <rect width="120" height="55" rx="6" fill={config.usePeriodicLR ? '#1e293b' : '#0f172a'} stroke={config.usePeriodicLR ? '#a855f7' : '#374151'} strokeWidth={config.usePeriodicLR ? '2' : '1'} opacity={config.usePeriodicLR ? 1 : 0.4}>
+                    {config.usePeriodicLR && state.status === 'running' && <animate attributeName="stroke" values="#a855f7;#c084fc;#a855f7" dur="1s" repeatCount="indefinite"/>}
+                  </rect>
+                  <text x="60" y="18" textAnchor="middle" fill={config.usePeriodicLR ? '#c084fc' : '#6b7280'} fontSize="9" fontWeight="bold">🌊 Periodic LR</text>
+                  <text x="60" y="32" textAnchor="middle" fill={config.usePeriodicLR ? '#d1d5db' : '#4b5563'} fontSize="8" fontFamily="monospace">ω={config.lrOmega} α={config.lrAmplitude}</text>
+                  <text x="60" y="45" textAnchor="middle" fill={config.usePeriodicLR ? '#a855f7' : '#6b7280'} fontSize="8">
+                    {config.usePeriodicLR ? `lr=${(state.learning_rate || config.learningRate).toExponential(1)}` : '○ OFF'}
+                  </text>
+                </g>
+                
+                {/* Temporal Buffer */}
+                <g transform="translate(280, 205)">
+                  <rect width="120" height="55" rx="6" fill={config.useTemporalBuffer ? '#1e293b' : '#0f172a'} stroke={config.useTemporalBuffer ? '#06b6d4' : '#374151'} strokeWidth={config.useTemporalBuffer ? '2' : '1'} opacity={config.useTemporalBuffer ? 1 : 0.4}/>
+                  <text x="60" y="18" textAnchor="middle" fill={config.useTemporalBuffer ? '#22d3ee' : '#6b7280'} fontSize="9" fontWeight="bold">🕐 Temporal Buf</text>
+                  <text x="60" y="32" textAnchor="middle" fill={config.useTemporalBuffer ? '#d1d5db' : '#4b5563'} fontSize="8" fontFamily="monospace">size={config.tbSize} λ={config.tbDecay}</text>
+                  <text x="60" y="45" textAnchor="middle" fill={config.useTemporalBuffer ? '#06b6d4' : '#6b7280'} fontSize="8">
+                    {config.useTemporalBuffer ? `[${Math.min(state.epoch || 0, config.tbSize)}/${config.tbSize}]` : '○ OFF'}
+                  </text>
+                </g>
+                
+                {/* Convergence Analysis */}
+                <g transform="translate(470, 70)">
+                  <rect width="120" height="55" rx="6" fill={config.useConvergenceAnalysis ? '#1e293b' : '#0f172a'} stroke={config.useConvergenceAnalysis ? (state.beta < 0.01 ? '#22c55e' : '#eab308') : '#374151'} strokeWidth={config.useConvergenceAnalysis ? '2' : '1'} opacity={config.useConvergenceAnalysis ? 1 : 0.4}>
+                    {config.useConvergenceAnalysis && state.stillness && <animate attributeName="stroke" values="#22c55e;#86efac;#22c55e" dur="0.6s" repeatCount="indefinite"/>}
+                  </rect>
+                  <text x="60" y="18" textAnchor="middle" fill={config.useConvergenceAnalysis ? '#fbbf24' : '#6b7280'} fontSize="9" fontWeight="bold">🎯 Conv Analysis</text>
+                  <text x="60" y="32" textAnchor="middle" fill={config.useConvergenceAnalysis ? '#d1d5db' : '#4b5563'} fontSize="8" fontFamily="monospace">β={state.beta?.toFixed(4) || '—'}</text>
+                  <text x="60" y="45" textAnchor="middle" fill={state.stillness ? '#22c55e' : (config.useConvergenceAnalysis ? '#eab308' : '#6b7280')} fontSize="8">
+                    {config.useConvergenceAnalysis ? (state.stillness ? '✓ CONVERGED' : 'monitoring...') : '○ OFF'}
+                  </text>
+                </g>
+                
+                {/* Convergence Damper */}
+                <g transform="translate(470, 160)">
+                  <rect width="120" height="55" rx="6" fill={config.useConvergenceDamper ? '#1e293b' : '#0f172a'} stroke={config.useConvergenceDamper ? (state.beta < config.cdThreshold ? '#3b82f6' : '#475569') : '#374151'} strokeWidth={config.useConvergenceDamper ? '2' : '1'} opacity={config.useConvergenceDamper ? 1 : 0.4}>
+                    {config.useConvergenceDamper && state.beta < config.cdThreshold && <animate attributeName="stroke" values="#3b82f6;#60a5fa;#3b82f6" dur="0.7s" repeatCount="indefinite"/>}
+                  </rect>
+                  <text x="60" y="18" textAnchor="middle" fill={config.useConvergenceDamper ? '#60a5fa' : '#6b7280'} fontSize="9" fontWeight="bold">🛡️ Conv Damper</text>
+                  <text x="60" y="32" textAnchor="middle" fill={config.useConvergenceDamper ? '#d1d5db' : '#4b5563'} fontSize="8" fontFamily="monospace">thresh={config.cdThreshold}</text>
+                  <text x="60" y="45" textAnchor="middle" fill={state.beta < config.cdThreshold ? '#3b82f6' : (config.useConvergenceDamper ? '#6b7280' : '#4b5563')} fontSize="8">
+                    {config.useConvergenceDamper ? (state.beta < config.cdThreshold ? '● DAMPING' : '○ standby') : '○ OFF'}
+                  </text>
+                </g>
+                
+                {/* Meta Controller */}
+                <g transform="translate(690, 105)">
+                  <rect width="120" height="70" rx="8" fill={config.useMetaController ? '#1e293b' : '#0f172a'} stroke={config.useMetaController ? (state.lr_reduced ? '#ef4444' : '#f97316') : '#374151'} strokeWidth={config.useMetaController ? '2' : '1'} opacity={config.useMetaController ? 1 : 0.4}>
+                    {state.lr_reduced && <animate attributeName="stroke" values="#ef4444;#fca5a5;#ef4444" dur="0.4s" repeatCount="indefinite"/>}
+                  </rect>
+                  <text x="60" y="18" textAnchor="middle" fill={config.useMetaController ? '#fb923c' : '#6b7280'} fontSize="9" fontWeight="bold">🧠 Meta Control</text>
+                  <text x="60" y="32" textAnchor="middle" fill={config.useMetaController ? '#d1d5db' : '#4b5563'} fontSize="8" fontFamily="monospace">patience={config.mcPatience}</text>
+                  <text x="60" y="46" textAnchor="middle" fill={config.useMetaController ? '#d1d5db' : '#4b5563'} fontSize="8" fontFamily="monospace">lr_factor={config.mcLrFactor}</text>
+                  <text x="60" y="60" textAnchor="middle" fill={state.lr_reduced ? '#ef4444' : (config.useMetaController ? '#22c55e' : '#6b7280')} fontSize="8" fontWeight={state.lr_reduced ? 'bold' : 'normal'}>
+                    {config.useMetaController ? (state.lr_reduced ? '🔴 LR REDUCED!' : '🟢 stable') : '○ OFF'}
+                  </text>
+                </g>
+                
+                {/* Curvature Regularizer */}
+                <g transform="translate(750, 205)">
+                  <rect width="120" height="55" rx="6" fill={config.useCurvatureRegularizer ? '#1e293b' : '#0f172a'} stroke={config.useCurvatureRegularizer ? '#ec4899' : '#374151'} strokeWidth={config.useCurvatureRegularizer ? '2' : '1'} opacity={config.useCurvatureRegularizer ? 1 : 0.4}/>
+                  <text x="60" y="18" textAnchor="middle" fill={config.useCurvatureRegularizer ? '#f472b6' : '#6b7280'} fontSize="9" fontWeight="bold">📐 Curvature Reg</text>
+                  <text x="60" y="32" textAnchor="middle" fill={config.useCurvatureRegularizer ? '#d1d5db' : '#4b5563'} fontSize="8" fontFamily="monospace">λ={config.curvatureLambda}</text>
+                  <text x="60" y="45" textAnchor="middle" fill={config.useCurvatureRegularizer ? '#ec4899' : '#6b7280'} fontSize="8">
+                    {config.useCurvatureRegularizer ? `curv=${state.curvature?.toExponential(1) || '—'}` : '○ OFF'}
+                  </text>
+                </g>
+                
+                {/* Early Stop indicator */}
+                {state.early_stopped && (
+                  <g transform="translate(400, 10)">
+                    <rect width="100" height="25" rx="4" fill="#dc2626">
+                      <animate attributeName="opacity" values="1;0.7;1" dur="0.5s" repeatCount="indefinite"/>
+                    </rect>
+                    <text x="50" y="17" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">🛑 EARLY STOP</text>
+                  </g>
+                )}
+                
+                {/* Legend */}
+                <g transform="translate(10, 250)">
+                  <text x="0" y="0" fill="#6b7280" fontSize="8">Legend:</text>
+                  <circle cx="50" cy="-3" r="4" fill="#22c55e"/><text x="60" y="0" fill="#9ca3af" fontSize="7">Active</text>
+                  <circle cx="110" cy="-3" r="4" fill="#eab308"/><text x="120" y="0" fill="#9ca3af" fontSize="7">Running</text>
+                  <circle cx="175" cy="-3" r="4" fill="#ef4444"/><text x="185" y="0" fill="#9ca3af" fontSize="7">Triggered</text>
+                  <circle cx="245" cy="-3" r="4" fill="#475569"/><text x="255" y="0" fill="#9ca3af" fontSize="7">Disabled</text>
+                </g>
+              </svg>
+            </div>
+
+            <div className="bg-slate-800 border border-slate-700 rounded p-2">
+              <div className="flex justify-between mb-1"><span className="text-[10px] text-gray-400">📋 Log</span><button onClick={() => setLogs([])} className="text-[9px] text-gray-500 hover:text-white">Clear</button></div>
+              <div className="h-20 overflow-y-auto font-mono text-[10px] bg-slate-900 rounded p-1.5 scrollbar-thin">
+                {logs.slice(-50).map((l, i) => <div key={i} className={l.level === 'success' ? 'text-green-400' : l.level === 'warning' ? 'text-yellow-400' : l.level === 'error' ? 'text-red-400' : 'text-gray-400'}><span className="text-gray-600">[{l.time}]</span> {l.message}</div>)}
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<ATFDashboard/>);
+    </script>
+</body>
+</html>

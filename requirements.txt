@@ -1,0 +1,86 @@
+# Adaptive Training Framework - Requirements
+# ===========================================
+#
+# Core dependencies:
+#   pip install -r requirements.txt
+#
+# With CUDA support:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+#   pip install -r requirements.txt
+#
+# For NLP benchmarks (BERT, GPT):
+#   pip install -r requirements.txt
+#   pip install transformers datasets
+#
+# Development install:
+#   pip install -e .
+
+# =============================================================================
+# Core Dependencies
+# =============================================================================
+
+# PyTorch (CPU version - for GPU, install separately)
+torch>=1.12.0
+torchvision>=0.13.0
+
+# Numerical computing
+numpy>=1.21.0
+
+# =============================================================================
+# Optional Dependencies
+# =============================================================================
+
+# TensorBoard logging
+tensorboard>=2.10.0
+
+# Progress bars (optional)
+tqdm>=4.64.0
+
+# YAML configuration
+pyyaml>=6.0
+
+# =============================================================================
+# NLP Dependencies (for BERT, GPT benchmarks)
+# =============================================================================
+
+# Uncomment these for NLP benchmarks:
+# transformers>=4.20.0
+# datasets>=2.0.0
+# sentencepiece>=0.1.96
+# tokenizers>=0.12.0
+
+# =============================================================================
+# Development Dependencies (optional)
+# =============================================================================
+
+# Testing
+# pytest>=7.0.0
+# pytest-cov>=3.0.0
+
+# Code formatting
+# black>=22.0.0
+# isort>=5.10.0
+
+# Type checking
+# mypy>=0.960
+
+# =============================================================================
+# Notes
+# =============================================================================
+
+# For CUDA support, install PyTorch with CUDA before other requirements:
+#
+#   # CUDA 11.8
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+#
+#   # CUDA 12.1
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+#
+# For Apple Silicon (M1/M2):
+#   pip install torch torchvision
+#
+# For NLP benchmarks (BERT, GPT-2, NanoGPT):
+#   pip install transformers datasets
+#
+# Then install remaining requirements:
+#   pip install -r requirements.txt

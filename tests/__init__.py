@@ -1,0 +1,3 @@
+"""
+Adaptive Training Framework - Tests
+"""

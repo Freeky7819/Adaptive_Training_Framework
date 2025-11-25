@@ -1,0 +1,186 @@
+# Adaptive Training Framework - Configuration Presets
+# ===================================================
+#
+# Usage:
+#   python -m cli.run --preset mnist_full
+#   python -m cli.run --preset cifar10_minimal
+#
+# Or use directly in Python:
+#   from atf import TrainingConfig
+#   config = TrainingConfig.full()
+
+# =============================================================================
+# MNIST Presets
+# =============================================================================
+
+mnist_baseline:
+  description: "MNIST with standard training (no enhancements)"
+  dataset: mnist
+  mode: baseline
+  epochs: 10
+  batch_size: 64
+  lr: 0.001
+  optimizer: adam
+
+mnist_minimal:
+  description: "MNIST with convergence analysis only"
+  dataset: mnist
+  mode: minimal
+  epochs: 15
+  batch_size: 64
+  lr: 0.001
+  optimizer: adam
+  # Enabled features:
+  # - Convergence Analysis (early stopping, LR reduction)
+  # - Convergence Damper
+  # - Temporal Feedback Buffer
+  # - Periodic LR Scheduler
+
+mnist_full:
+  description: "MNIST with all features enabled"
+  dataset: mnist
+  mode: full
+  epochs: 20
+  batch_size: 64
+  lr: 0.001
+  optimizer: adam
+  # All features enabled
+
+# =============================================================================
+# Fashion-MNIST Presets
+# =============================================================================
+
+fashion_mnist_baseline:
+  description: "Fashion-MNIST baseline"
+  dataset: fashion_mnist
+  mode: baseline
+  epochs: 15
+  batch_size: 64
+  lr: 0.001
+  optimizer: adam
+
+fashion_mnist_full:
+  description: "Fashion-MNIST with all features"
+  dataset: fashion_mnist
+  mode: full
+  epochs: 25
+  batch_size: 64
+  lr: 0.001
+  optimizer: adam
+
+# =============================================================================
+# CIFAR-10 Presets
+# =============================================================================
+
+cifar10_baseline:
+  description: "CIFAR-10 baseline training"
+  dataset: cifar10
+  mode: baseline
+  epochs: 50
+  batch_size: 128
+  lr: 0.001
+  optimizer: adam
+  weight_decay: 0.0001
+
+cifar10_minimal:
+  description: "CIFAR-10 with core adaptive features"
+  dataset: cifar10
+  mode: minimal
+  epochs: 75
+  batch_size: 128
+  lr: 0.001
+  optimizer: adam
+  weight_decay: 0.0001
+  # Convergence analysis + damper + temporal buffer + periodic LR
+
+cifar10_full:
+  description: "CIFAR-10 with full adaptive training"
+  dataset: cifar10
+  mode: full
+  epochs: 100
+  batch_size: 128
+  lr: 0.001
+  optimizer: adam
+  weight_decay: 0.0001
+  # All features enabled
+  # Expected improvement: +2-3% accuracy over baseline
+
+cifar10_stratified:
+  description: "CIFAR-10 with stratified sampling"
+  dataset: cifar10
+  mode: full
+  epochs: 100
+  batch_size: 128
+  lr: 0.001
+  optimizer: adam
+  weight_decay: 0.0001
+  sampler: stratified
+  sampler_alpha: 0.1  # Log-periodic shuffle
+
+# =============================================================================
+# Research Presets (for ablation studies)
+# =============================================================================
+
+ablation_gradient_feedback:
+  description: "Test gradient feedback controller alone"
+  dataset: cifar10
+  mode: custom
+  epochs: 50
+  batch_size: 128
+  lr: 0.001
+  use_gradient_feedback: true
+  gfc_alpha: 0.05
+  gfc_omega: 6.0
+
+ablation_periodic_lr:
+  description: "Test periodic LR scheduler alone"
+  dataset: cifar10
+  mode: custom
+  epochs: 50
+  batch_size: 128
+  lr: 0.001
+  use_periodic_lr: true
+  lr_amplitude: 0.08
+  lr_omega: 6.0
+  lr_decay: 0.003
+
+ablation_convergence:
+  description: "Test convergence analysis + damper"
+  dataset: cifar10
+  mode: custom
+  epochs: 50
+  batch_size: 128
+  lr: 0.001
+  use_convergence_analysis: true
+  use_convergence_damper: true
+  ca_patience: 5
+  ca_min_delta: 0.005
+
+# =============================================================================
+# Parameter Guidelines
+# =============================================================================
+
+# Gradient Feedback Controller (GFC):
+#   gfc_alpha: 0.03-0.10 (feedback strength)
+#   gfc_omega: 5.0-7.0 (frequency, 6.0 is universal)
+#   gfc_phi: 0.0-1.0 (phase offset)
+#
+# Periodic LR Scheduler:
+#   lr_amplitude: 0.05-0.15 (oscillation amplitude)
+#   lr_omega: 5.0-7.0 (frequency, 6.0 is universal)
+#   lr_decay: 0.001-0.01 (exponential decay rate)
+#
+# Convergence Damper:
+#   damper_beta_threshold: 0.005-0.015 (activation threshold)
+#   damper_alpha: 0.30-0.50 (maximum damping)
+#
+# Convergence Analysis:
+#   ca_patience: 3-10 (epochs before action)
+#   ca_min_delta: 0.001-0.01 (improvement threshold)
+#   ca_max_reductions: 1-3 (LR reductions before stopping)
+#
+# Universal Frequency:
+#   The value ω ≈ 6.0 has been empirically observed to produce
+#   stable training dynamics across multiple architectures and
+#   datasets. This corresponds to approximately one oscillation
+#   per e-fold increase in training steps (in log-time).
